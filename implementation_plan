@@ -1,0 +1,52 @@
+# Implementation Plan - Banana Survivors Enhancements
+
+Enhance enemy variety, improve UI feedback, and implement a progression system with class unlocks.
+
+## Proposed Changes
+
+### [Component] Enemy Diversity & Orientation
+- **File**: [enemies.js](file:///c:/Users/hmmm/banana_survivors/enemies.js)
+    - [MODIFY] `Enemy._moveToward`: Add movement patterns like "zig-zag" or "circling" based on a new `moveType` property in enemy definitions.
+    - [MODIFY] `Enemy.update`: Calculate velocity `vx`, `vy` for all movement types to support rotation/facing.
+- **File**: [base.js](file:///c:/Users/hmmm/banana_survivors/base.js)
+    - [MODIFY] `BaseObject._applyWalkAnimation`: Implement rotation towards the movement vector for enemies to "face the way they are going". Handle the interaction between movement rotation and the existing "rock" animation.
+- **File**: [config.js](file:///c:/Users/hmmm/banana_survivors/config.js)
+    - [MODIFY] `ENEMY_DEFS`: Assign different `moveType` to enemies (e.g., `mold_fly` as zig-zag, `wasp` as erratic/drunk).
+
+### [Component] UI Hover Effects
+- **File**: [scenes.js](file:///c:/Users/hmmm/banana_survivors/scenes.js)
+    - [MODIFY] [ClassSelectScene](file:///c:/Users/hmmm/banana_survivors/scenes.js#271-393): Update `pointerover` and `pointerout` listeners on class cards to also scale the class icon (as requested, "increase the source icon by just a little").
+
+### [Component] Class Unlock System
+- **File**: [player.js](file:///c:/Users/hmmm/banana_survivors/player.js)
+    - [MODIFY] `CLASS_DEFS`: Add metadata for unlock conditions for each class (except the first two).
+- **File**: [scenes.js](file:///c:/Users/hmmm/banana_survivors/scenes.js)
+    - [MODIFY] `GameScene._onPlayerDead`: Update global stats in `localStorage` (`totalRuns`, `maxKillsInOneRun`, `totalKills`, `maxLevelReached`).
+    - [MODIFY] [BootScene](file:///c:/Users/hmmm/banana_survivors/scenes.js#4-267): Preload the padlock icon [assets/icons/delapouite/plain-padlock.png](file:///c:/Users/hmmm/banana_survivors/assets/icons/delapouite/plain-padlock.png).
+    - [MODIFY] [ClassSelectScene](file:///c:/Users/hmmm/banana_survivors/scenes.js#271-393):
+        - Load stats from `localStorage`.
+        - Check unlock conditions.
+        - If locked:
+            - Replace class icon with padlock.
+            - Add text showing the unlock condition.
+            - Disable selection (pointerdown does nothing).
+            - Visually mute the card (e.g., lower alpha or grayscale).
+
+## Verification Plan
+
+### Automated Tests
+- N/A (Project relies on manual verification through browser)
+
+### Manual Verification
+1. **Enemy Diversity**:
+    - Run the game and observe different enemy movement patterns.
+    - Verify that enemies rotate to face the direction they are moving.
+2. **UI Hover**:
+    - Go to the Class Selection screen.
+    - Hover over different classes and verify the icon grows slightly and shrinks back.
+3. **Class Unlocks**:
+    - Initially, verify only Alchemist and Bruiser are unlocked.
+    - Verify other classes show a padlock and their unlock condition.
+    - Cheat stats in `localStorage` via browser console to verify unlocks:
+        - `localStorage.setItem('banana_stats', JSON.stringify({totalRuns: 10, maxKills: 400, totalKills: 4000, maxLevel: 11}))`
+        - Refresh and verify all classes are unlocked.
