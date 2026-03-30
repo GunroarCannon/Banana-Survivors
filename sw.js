@@ -1,4 +1,4 @@
-const CACHE_NAME = 'banana-survivors-v1';
+const CACHE_NAME = 'banana-survivors-v1.01';
 const ASSETS = [
   '/',
   '/index.html',
@@ -27,6 +27,14 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only cache GET requests and local assets
+  const url = new URL(event.request.url);
+  const isExternal = !url.host.includes(location.host);
+  
+  if (event.request.method !== 'GET' || isExternal) {
+    return; // Let browser handle it directly
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

@@ -23,7 +23,9 @@ class UIManager {
     constructor(scene) {
         this.scene = scene;
         this.upgradePanel = null;
-        this._build();
+        if (this.scene.scene.key === 'UI') {
+            this._build();
+        }
     }
 
     _build() {
@@ -266,5 +268,120 @@ class UIManager {
 
     destroy() {
         this._closeUpgrades();
+    }
+
+    // ── Generic Menu Helpers ────────────────────────────────
+    static createMenuButton(scene, x, y, width, height, text, onClick) {
+        const btn = scene.add.nineslice(x, y, 'round_rect', 0, width, height, 16, 16, 16, 16).setTint(0xfdfae6)
+            .setInteractive({ useHandCursor: true });
+        const stroke = scene.add.nineslice(x, y, 'round_rect_outline', 0, width, height, 16, 16, 16, 16).setTint(0x1a1a1a);
+        
+        const txt = scene.add.text(x, y, text.toUpperCase(), {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#2c3e50'
+        }).setOrigin(0.5);
+
+        btn.on('pointerover', () => {
+            btn.setTint(0xfff3c0);
+            stroke.setTint(0xf39c12);
+            scene.tweens.add({ targets: [btn, stroke, txt], scaleX: 1.05, scaleY: 1.05, duration: 80 });
+        });
+        btn.on('pointerout', () => {
+            btn.setTint(0xfdfae6);
+            stroke.setTint(0x1a1a1a);
+            scene.tweens.add({ targets: [btn, stroke, txt], scaleX: 1, scaleY: 1, duration: 80 });
+        });
+        btn.on('pointerdown', () => {
+            const gs = scene.scene.get('Game');
+            if (gs?.sound?.get('sfx_click')) gs.sound.play('sfx_click', { volume: 0.7 });
+            onClick();
+        });
+
+        return { btn, stroke, txt, destroy: () => { btn.destroy(); stroke.destroy(); txt.destroy(); } };
+    }
+
+    static createMenuPanel(scene, x, y, width, height, titleText) {
+        const bg = scene.add.nineslice(x, y, 'round_rect', 0, width, height, 16, 16, 16, 16).setTint(0xfdfae6);
+        const stroke = scene.add.nineslice(x, y, 'round_rect_outline', 0, width, height, 16, 16, 16, 16).setTint(0x1a1a1a);
+        
+        let title = null;
+        if (titleText) {
+            title = scene.add.text(x, y - height/2 + 30, titleText.toUpperCase(), {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '28px', fill: '#2c3e50',
+                stroke: '#ffd700', strokeThickness: 2
+            }).setOrigin(0.5);
+        }
+
+        return { bg, stroke, title, destroy: () => { bg.destroy(); stroke.destroy(); title?.destroy(); } };
+    }
+
+    static showNameInput(scene, currentName, onSave) {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        const overlay = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setInteractive().setDepth(3000);
+        const panel = this.createMenuPanel(scene, W / 2, H / 2, 320, 200, 'YOUR NAME');
+        panel.bg.setDepth(3001); panel.stroke.setDepth(3002); panel.title.setDepth(3003);
+
+        let name = currentName || '';
+        const nameText = scene.add.text(W / 2, H / 2, name, {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '24px', fill: '#2c3e50',
+            backgroundColor: '#eee', padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setDepth(3004);
+
+        const cursor = scene.add.rectangle(W / 2 + nameText.width / 2 + 5, H / 2, 2, 24, 0x2c3e50).setDepth(3005);
+        scene.tweens.add({ targets: cursor, alpha: 0, duration: 500, yoyo: true, repeat: -1 });
+
+        const instr = scene.add.text(W / 2, H / 2 + 50, 'TYPE AND PRESS ENTER', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '12px', fill: '#666'
+        }).setOrigin(0.5).setDepth(3004);
+
+        const updateDisplay = () => {
+            nameText.setText(name || ' ');
+            cursor.setX(W / 2 + nameText.width / 2 + (name ? 5 : -5));
+        };
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Backspace') {
+                name = name.slice(0, -1);
+            } else if (e.key === 'Enter') {
+                if (name.trim().length > 0) {
+                    cleanup();
+                    onSave(name.trim());
+                }
+            } else if (e.key.length === 1 && name.length < 12) {
+                name += e.key;
+            }
+            updateDisplay();
+        };
+
+        const cleanup = () => {
+            window.removeEventListener('keydown', onKeyDown);
+            overlay.destroy(); panel.destroy(); nameText.destroy(); cursor.destroy(); instr.destroy();
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        overlay.on('pointerdown', cleanup); // Click outside to cancel? Maybe better not for initial setup.
+    }
+
+    static showTutorial(scene, onClose) {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        const overlay = scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setInteractive().setDepth(5000);
+        
+        const panel = this.createMenuPanel(scene, W / 2, H / 2, 320, 320, 'WELCOME!');
+        panel.bg.setDepth(5001); panel.stroke.setDepth(5002); panel.title.setDepth(5003);
+
+        const content = "Welcome, Banana!\n\nLast as long as you can against the rot. Drag your...uhh...banana to move it.\n\nCollect pellets to level up and choose upgrades, and survive!";
+        
+        const txt = scene.add.text(W / 2, H / 2 - 20, content, {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '15px', fill: '#2c3e50',
+            align: 'center', wordWrap: { width: 280 }
+        }).setOrigin(0.5).setDepth(5004);
+
+        const btn = this.createMenuButton(scene, W / 2, H / 2 + 100, 160, 44, 'GOT IT!', () => {
+            overlay.destroy();
+            panel.destroy();
+            txt.destroy();
+            btn.destroy();
+            if (onClose) onClose();
+        });
+        btn.btn.setDepth(5005); btn.stroke.setDepth(5006); btn.txt.setDepth(5007);
     }
 }

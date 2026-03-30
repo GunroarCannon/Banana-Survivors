@@ -43,6 +43,32 @@ class Enemy extends BaseObject {
         }
     }
 
+    makeSpecial() {
+        if (this.isElite || this.isBoss) return; // don't double-scale bosses
+        this.isSpecial = true;
+        const scale = Phaser.Math.FloatBetween(2, 3);
+        this.sprite.setScale(scale);
+        
+        // Random vibrant color
+        const colors = [0xff00ff, 0x00ffff, 0xffff00, 0xff8800, 0x88ff00, 0x0088ff];
+        const color = Phaser.Math.RND.pick(colors);
+        this.sprite.setTint(color);
+        
+        // Buff stats
+        this.hp *= 2.5;
+        this.def.damage *= 1.5;
+        this.xp *= 3;
+        
+        // Add a subtle particle trail or glow if possible, but let's keep it simple for now
+        this.scene.tweens.add({
+            targets: this.sprite,
+            alpha: 0.8,
+            duration: 300,
+            yoyo: true,
+            repeat: -1
+        });
+    }
+
     update(delta, entities) {
         if (this.dead) return;
 
@@ -514,6 +540,13 @@ class WaveSpawner {
             const pos = this._spawnPos(pattern, i, count);
             const key = Phaser.Math.RND.pick(keys);
             const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult);
+            
+            // Special monster chance: 2% + 5% * diffLevel
+            const specialChance = 0.02 + (0.05 * this.diffLevel);
+            if (Math.random() < specialChance) {
+                e.makeSpecial();
+            }
+
             this.scene.enemies.push(e);
         }
     }
@@ -524,6 +557,13 @@ class WaveSpawner {
         const pos = this._randomEdgePos();
         const key = Phaser.Math.RND.pick(keys);
         const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult * 1.5);
+        
+        // Elites also have a chance to be "Extra Special"
+        const specialChance = 0.05 + (0.05 * this.diffLevel);
+        if (Math.random() < specialChance) {
+            e.makeSpecial();
+        }
+
         this.scene.enemies.push(e);
         GameUtils.screenShake(this.scene, { intensity: 5, duration: 200 });
         GameUtils.floatText(this.scene, this.scene.player.x, this.scene.player.y - 60, '⚠ ELITE ⚠', '#ff4400', 20);

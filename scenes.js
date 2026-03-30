@@ -131,7 +131,12 @@ class BootScene extends Phaser.Scene {
             this._genPlayerTexture('player_' + key, def.color, 42, 52);
         }
 
-        this.scene.start('ClassSelect');
+        // Initialize LootLocker
+        if (window.lootLocker) {
+            window.lootLocker.startSession();
+        }
+
+        this.scene.start('MainMenu');
     }
 
     _generateFloorTexture() {
@@ -385,6 +390,8 @@ class ClassSelectScene extends Phaser.Scene {
             }
         });
 
+        this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
+
         // Best score display
         const best = this._loadBest();
         if (best) {
@@ -422,6 +429,238 @@ class ClassSelectScene extends Phaser.Scene {
         } catch {
             return { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0 };
         }
+    }
+}
+
+// ============================================================
+//  MainMenuScene
+// ============================================================
+class MainMenuScene extends Phaser.Scene {
+    constructor() { super('MainMenu'); }
+
+    create() {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+
+        // Tiled paper floor
+        for (let x = 0; x < W; x += 512)
+            for (let y = 0; y < H; y += 512)
+                this.add.image(x, y, 'background').setOrigin(0, 0);
+
+        // Logo / Title
+        const logoY = H * 0.25;
+        this.add.image(W / 2 - 100, logoY - 20, 'banana').setDisplaySize(60, 60).setAngle(-15);
+        this.add.text(W / 2, logoY, 'BANANA\nSURVIVORS', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '48px', fill: '#2c3e50',
+            stroke: '#ffd700', strokeThickness: 4, align: 'center'
+        }).setOrigin(0.5);
+
+        // Player Name Label (Transparent BG, clickable)
+        const playerName = localStorage.getItem('player_name');
+        const nameLabel = this.add.text(W / 2, logoY + 90, `YOU ARE: ${playerName || '???'}`.toUpperCase(), {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '18px', fill: '#2c3e50',
+            backgroundColor: 'transparent',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        nameLabel.on('pointerover', () => nameLabel.setTint(0xf39c12));
+        nameLabel.on('pointerout', () => nameLabel.clearTint());
+        nameLabel.on('pointerdown', () => this._promptNameUpdate(nameLabel));
+
+        // Auto-prompt if no name
+        if (!playerName) {
+            this.time.delayedCall(1000, () => this._promptNameUpdate(nameLabel));
+        }
+
+        // Buttons
+        const startY = H * 0.55;
+        const spacing = 70;
+
+        UIManager.createMenuButton(this, W / 2, startY, 240, 56, 'Play', () => {
+            this.scene.start('ClassSelect');
+        });
+
+        UIManager.createMenuButton(this, W / 2, startY + spacing, 240, 56, 'Leaderboard', () => {
+            this.scene.start('Leaderboard');
+        });
+
+        UIManager.createMenuButton(this, W / 2, startY + spacing * 2, 240, 56, 'Stats', () => {
+            this.scene.start('Stats');
+        });
+
+        // Global Navigation
+        this.input.keyboard.on('keydown-ESC', () => {
+             // Main menu ESC could exit or do nothing
+        });
+
+        // Best score display (bottom)
+        const best = this._loadBest();
+        if (best) {
+            const footer = this.add.container(W / 2, H - 70);
+            const bg = this.add.rectangle(0, 0, W - 40, 80, 0x2c3e50, 0.85).setStrokeStyle(2, 0xffd700);
+            const trophy = this.add.image(-W / 2 + 60, -15, 'trophy').setDisplaySize(20, 20).setTint(0xffd700);
+            const title = this.add.text(0, -22, 'LIFETIME BEST', {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '13px', fill: '#ffd700'
+            }).setOrigin(0.5);
+            const data = this.add.text(0, 5, `${best.className} • LV${best.level} • ${best.kills} KILLS • ${best.survivedTime}`, {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '14px', fill: '#eee'
+            }).setOrigin(0.5);
+            footer.add([bg, trophy, title, data]);
+        }
+    }
+
+    _promptNameUpdate(label) {
+        UIManager.showNameInput(this, localStorage.getItem('player_name'), (newName) => {
+            localStorage.setItem('player_name', newName);
+            label.setText(`YOU ARE: ${newName}`.toUpperCase());
+            window.lootLocker.setPlayerName(newName);
+        });
+    }
+
+    _loadBest() {
+        try { return JSON.parse(localStorage.getItem('banana_best')); }
+        catch { return null; }
+    }
+}
+
+// ============================================================
+//  LeaderboardScene
+// ============================================================
+class LeaderboardScene extends Phaser.Scene {
+    constructor() { super('Leaderboard'); }
+
+    async create() {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        for (let x = 0; x < W; x += 512)
+            for (let y = 0; y < H; y += 512)
+                this.add.image(x, y, 'background').setOrigin(0, 0);
+
+        this.panel = UIManager.createMenuPanel(this, W / 2, H / 2, W - 40, H - 100, 'Leaderboard');
+        this.listItems = [];
+        this._fetchScores();
+
+        UIManager.createMenuButton(this, W / 2, H - 85, 160, 44, 'Back', () => {
+            this.scene.start('MainMenu');
+        });
+
+        this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
+    }
+
+    async _fetchScores() {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        
+        // Clean up old items
+        this.listItems.forEach(i => i.destroy());
+        this.listItems = [];
+        if (this.reloadBtn) { this.reloadBtn.destroy(); this.reloadBtn = null; }
+
+        const loading = this.add.text(W / 2, H / 2, 'FETCHING SCORES...', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '18px', fill: '#888'
+        }).setOrigin(0.5);
+        this.listItems.push(loading);
+
+        try {
+            const response = await window.lootLocker.getTopScores(10);
+            loading.destroy();
+
+            if (!response.items || response.items.length === 0) {
+                const noScores = this.add.text(W / 2, H / 2, 'NO SCORES YET', {
+                    fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#666'
+                }).setOrigin(0.5);
+                this.listItems.push(noScores);
+            } else {
+                response.items.forEach((item, i) => {
+                    const py = 160 + i * 42;
+                    const r = this.add.text(60, py, `#${item.rank}`, {
+                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50'
+                    }).setOrigin(0, 0.5);
+                    
+                    const n = this.add.text(100, py, item.player.name || `Player ${item.player.id}`, {
+                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50', fontWeight: 'bold'
+                    }).setOrigin(0, 0.5);
+
+                    const s = this.add.text(W - 60, py, item.score.toString(), {
+                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#e67e22'
+                    }).setOrigin(1, 0.5);
+
+                    this.listItems.push(r, n, s);
+
+                    if (item.metadata) {
+                        try {
+                            const meta = JSON.parse(item.metadata);
+                            const m = this.add.text(100, py + 12, `${meta.class} • ${meta.time}`, {
+                                fontFamily: "'Fredoka One', sans-serif", fontSize: '10px', fill: '#888'
+                            }).setOrigin(0, 0.5);
+                            this.listItems.push(m);
+                        } catch(e) {}
+                    }
+                });
+            }
+        } catch (e) {
+            loading.setText('OFFLINE');
+            this.reloadBtn = UIManager.createMenuButton(this, W / 2, H / 2 + 50, 140, 40, 'Reload', () => {
+                this._fetchScores();
+            });
+        }
+    }
+}
+
+// ============================================================
+//  StatsScene
+// ============================================================
+class StatsScene extends Phaser.Scene {
+    constructor() { super('Stats'); }
+
+    create() {
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        for (let x = 0; x < W; x += 512)
+            for (let y = 0; y < H; y += 512)
+                this.add.image(x, y, 'background').setOrigin(0, 0);
+
+        const panel = UIManager.createMenuPanel(this, W / 2, H / 2, W - 40, H - 100, 'Your Stats');
+
+        const stats = this._loadStats();
+        const statLines = [
+            { label: 'Total Runs', value: stats.totalRuns },
+            { label: 'Total Kills', value: stats.totalKills },
+            { label: 'Max Kills (One Run)', value: stats.maxKills },
+            { label: 'Highest Level', value: stats.maxLevel },
+            { label: 'Time Survived', value: this._formatTime(stats.totalTime || 0) },
+            { label: 'Pulp Collected', value: Math.floor(stats.totalPulp || 0) }
+        ];
+
+        statLines.forEach((s, i) => {
+            const py = 180 + i * 50;
+            this.add.text(60, py, s.label.toUpperCase(), {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '14px', fill: '#666'
+            }).setOrigin(0, 0.5);
+
+            this.add.text(W - 60, py, s.value.toString(), {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#2c3e50', fontWeight: 'bold'
+            }).setOrigin(1, 0.5);
+
+            this.add.line(W / 2, py + 25, 0, 0, W - 100, 0, 0x000000, 0.1);
+        });
+
+        UIManager.createMenuButton(this, W / 2, H - 85, 160, 44, 'Back', () => {
+            this.scene.start('MainMenu');
+        });
+
+        this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
+    }
+
+    _loadStats() {
+        try {
+            return JSON.parse(localStorage.getItem('banana_stats')) || { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0 };
+        } catch { return { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0 }; }
+    }
+
+    _formatTime(sec) {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
     }
 }
 
@@ -492,6 +731,14 @@ class GameScene extends Phaser.Scene {
         // Keyboard
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys({ up: 'W', down: 'S', left: 'A', right: 'D' });
+        this.input.keyboard.on('keydown-ESC', () => {
+            this.paused = !this.paused;
+            if (this.paused) {
+                this._showPauseOverlay();
+            } else {
+                this._hidePauseOverlay();
+            }
+        });
 
         // Events
         this.events.on('player_hp_changed', (hp, max) => this.ui.updateHp(hp, max));
@@ -509,21 +756,19 @@ class GameScene extends Phaser.Scene {
         });
 
         // Fermented One (10% chance from previous run)
+        // Fermented One (10% chance from previous run)
         this._trySpawnFermented();
 
         // Fade in
         this.cameras.main.fadeIn(400);
 
-
         // In create():
         this.fx = new SceneFX(this, { depth: 190 });
-
         this.fx.enable('vignette', { intensity: 0.5 });
         this.fx.enable('scanlines', { alpha: 0.07 });
         this.fx.enable('chromatic', { offset: 1.5, animated: true });
         this.fx.enable('grain', { alpha: 0.04 });
         this.fx.enable('overlay', { color: 0xff0000, alpha: 0 }); // red for low HP
-
 
         // Low-HP pulse (call from player_hp_changed handler):
         this.events.on('player_hp_changed', (hp, max) => {
@@ -531,6 +776,58 @@ class GameScene extends Phaser.Scene {
             this.fx.setOverlayAlpha(t * 0.25); // fades in as HP drops
         });
 
+        // Tutorial Popup (One-time)
+        if (!localStorage.getItem('tutorialPopUpOpened')) {
+            this.paused = true;
+            this.time.delayedCall(1200, () => {
+                if (this.ui && this.ui.scene) {
+                    UIManager.showTutorial(this.ui.scene, () => {
+                        this.paused = false;
+                        localStorage.setItem('tutorialPopUpOpened', 'true');
+                    });
+                } else {
+                    this.paused = false;
+                }
+            });
+        }
+    }
+
+    _showPauseOverlay() {
+        if (!this.ui || !this.ui.scene) return;
+        const uiScene = this.ui.scene;
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        this.pauseOverlay = uiScene.add.container(0, 0).setDepth(4000);
+        
+        const bg = uiScene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.6).setInteractive();
+        this.pauseOverlay.add(bg);
+
+        const panel = UIManager.createMenuPanel(uiScene, W / 2, H / 2, 300, 250, 'PAUSED');
+        panel.bg.setDepth(4001); panel.stroke.setDepth(4002); panel.title.setDepth(4003);
+        this.pauseOverlay.add([panel.bg, panel.stroke, panel.title]);
+
+        const resumeBtn = UIManager.createMenuButton(uiScene, W / 2, H / 2, 200, 50, 'CONTINUE', () => {
+            this._hidePauseOverlay();
+            this.paused = false;
+        });
+        resumeBtn.btn.setDepth(4004); resumeBtn.stroke.setDepth(4005); resumeBtn.txt.setDepth(4006);
+        
+        const quitBtn = UIManager.createMenuButton(uiScene, W / 2, H / 2 + 70, 200, 50, 'QUIT', () => {
+            this._hidePauseOverlay();
+            this.scene.stop('UI');
+            this.scene.start('MainMenu');
+        });
+        quitBtn.btn.setDepth(4004); quitBtn.stroke.setDepth(4005); quitBtn.txt.setDepth(4006);
+
+        this.pauseOverlay.add([resumeBtn.btn, resumeBtn.stroke, resumeBtn.txt, quitBtn.btn, quitBtn.stroke, quitBtn.txt]);
+        this._pauseUIElements = [resumeBtn, quitBtn, panel, bg];
+    }
+
+    _hidePauseOverlay() {
+        if (this.pauseOverlay) {
+            if (this._pauseUIElements) this._pauseUIElements.forEach(e => e.destroy());
+            this.pauseOverlay.destroy();
+            this.pauseOverlay = null;
+        }
     }
 
     _playRandomMusic() {
@@ -799,34 +1096,63 @@ class GameScene extends Phaser.Scene {
             time: new Date().toLocaleDateString(),
         };
 
-        try {
-            // ── GLOBAL STATS TRACKING ──────────────────────────────────────────────
-            const stats = JSON.parse(localStorage.getItem('banana_stats') || 'null') || { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0 };
-            stats.totalRuns++;
-            stats.maxKills = Math.max(stats.maxKills, this.totalKills);
-            stats.totalKills += this.totalKills;
-            stats.maxLevel = Math.max(stats.maxLevel, this.level);
-            localStorage.setItem('banana_stats', JSON.stringify(stats));
+        // Update persistent stats
+        this._updateGlobalStats(runData);
 
-            // banana_last_run — read by _trySpawnFermented() on next game start.
-            // This is THE key place where the player's run is persisted to appear
-            // as the "Fermented One" enemy in the next session.
-            localStorage.setItem('banana_last_run', JSON.stringify(runData));
+        // Handle Best Run
+        this._checkBestRun(runData);
 
-            // banana_best — leaderboard / best-run trophy shown on ClassSelect.
-            const best = JSON.parse(localStorage.getItem('banana_best') || 'null');
-            if (!best || this.level > best.level || (this.level === best.level && this.totalKills > best.kills)) {
-                localStorage.setItem('banana_best', JSON.stringify(runData));
-            }
-        } catch { }
-        // ── END PLAYER DEATH SAVE ──────────────────────────────────────────────
+        // Leaderboard Submission
+        this._handleScoreSubmission(runData);
 
-        this.time.delayedCall(1200, () => {
+        // Transition to GameOver after a short delay
+        this.time.delayedCall(1500, () => {
             this.scene.stop('UI');
             this.scene.start('GameOver', runData);
         });
     }
+
+    _updateGlobalStats(run) {
+        try {
+            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
+            stats.totalRuns++;
+            stats.totalKills += run.kills;
+            stats.totalTime = (stats.totalTime || 0) + run.survivedSec;
+            stats.totalPulp = (stats.totalPulp || 0) + (this.totalPulpCollected || 0);
+            if (run.kills > stats.maxKills) stats.maxKills = run.kills;
+            if (run.level > stats.maxLevel) stats.maxLevel = run.level;
+            localStorage.setItem('banana_stats', JSON.stringify(stats));
+        } catch (e) { }
+    }
+
+    _checkBestRun(run) {
+        try {
+            const best = JSON.parse(localStorage.getItem('banana_best') || 'null');
+            if (!best || run.kills > best.kills || (run.kills === best.kills && run.survivedSec > best.survivedSec)) {
+                localStorage.setItem('banana_best', JSON.stringify(run));
+            }
+        } catch (e) { }
+    }
+
+    async _handleScoreSubmission(run) {
+        let playerName = localStorage.getItem('player_name');
+        if (!playerName) {
+            playerName = window.prompt("NEW HERO! ENTER YOUR NAME:", "Banana Warrior");
+            if (!playerName) playerName = "Anonymous";
+            localStorage.setItem('player_name', playerName);
+            await window.lootLocker.setPlayerName(playerName);
+        }
+
+        const metadata = {
+            class: run.className,
+            time: run.survivedTime,
+            lvl: run.level
+        };
+
+        await window.lootLocker.submitScore(run.kills, metadata);
+    }
 }
+
 
 // ============================================================
 //  UpgradeManager
@@ -969,7 +1295,7 @@ class GameOverScene extends Phaser.Scene {
 
         const menuBtn = this._makeBtn(W / 2, H - 60, '   MAIN MENU', 0x2c3e50, 0xffd700);
         this.add.image(W / 2 - 64, H - 60, 'home').setDisplaySize(20, 20).setTint(0x000000);
-        menuBtn.on('pointerdown', () => this.scene.start('ClassSelect'));
+        menuBtn.on('pointerdown', () => this.scene.start('MainMenu'));
 
         this.cameras.main.fadeIn(500);
     }

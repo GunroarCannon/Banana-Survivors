@@ -116,6 +116,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 
+    <script src="lootlocker.js"></script>
     <script src="scene.fx.js"></script>
     <script src="noise.js"></script>
     <script src="config.js"></script>
@@ -140,7 +141,7 @@
                     mode: Phaser.Scale.FIT,
                     autoCenter: Phaser.Scale.CENTER_BOTH
                 },
-                scene: [BootScene, ClassSelectScene, GameScene, UIScene, GameOverScene],
+                scene: [BootScene, MainMenuScene, StatsScene, LeaderboardScene, ClassSelectScene, GameScene, UIScene, GameOverScene],
                 physics: {
                     default: 'arcade',
                     arcade: {
@@ -161,10 +162,21 @@
 
             // Register Service Worker for PWA
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker Registered'))
-                    .catch(err => console.log('Service Worker Registration Failed', err));
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // This is where you tell the user "New version available!"
+                                if (confirm("New update available! Reload now?")) {
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    });
+                });
             }
+
         });
     </script>
 </body>
