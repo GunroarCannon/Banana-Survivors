@@ -3,58 +3,60 @@ class LootLockerService {
         this.apiKey = "dev_c5adaa99b89344599c92f2f0e535f96a";
         this.domainKey = "jgzdbwyc";
         this.baseUrl = "https://jgzdbwyc.api.lootlocker.io/game";
-        this.sessionToken = null;
-        this.playerId = null;
-        this.isOnline = true;
+        this.sessionToken = localStorage.getItem('ll_session_token') || null;
+        this.playerIdentifier = localStorage.getItem('ll_player_identifier') || crypto.randomUUID();
+        localStorage.setItem('ll_player_identifier', this.playerIdentifier);
+        this.isOnline = false;
     }
 
     async startSession() {
+        if (this.sessionToken) {
+            console.log("Reusing cached session token");
+            this.isOnline = true;
+            this.processOfflineQueue();
+            return { session_token: this.sessionToken };
+        }
+
         try {
-            const response = await fetch(`${this.baseUrl}/v1/session/guest`, {
+            const response = await fetch(`${this.baseUrl}/v2/session/guest`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-domain-key': this.domainKey   // required for domain URL
+                },
                 body: JSON.stringify({
                     game_key: this.apiKey,
-                    game_version: "0.1.0"
+                    game_version: "0.1.0.0",
+                    player_identifier: this.playerIdentifier,
                 })
             });
+
             const data = await response.json();
+            if (!data.session_token) throw new Error("No session token: " + JSON.stringify(data));
+
             this.sessionToken = data.session_token;
-            this.playerId = data.player_id;
+            localStorage.setItem('ll_session_token', this.sessionToken);
             this.isOnline = true;
-            console.log("LootLocker Session Started", data);
-            
-            // Try to process any pending scores
+            console.log("LootLocker session started", data);
             this.processOfflineQueue();
-            
             return data;
         } catch (e) {
             this.isOnline = false;
-            console.warn("LootLocker Offline", e);
+            console.warn("LootLocker offline / session failed", e);
         }
     }
 
-    async setPlayerName(name) {
-        if (!this.sessionToken) return;
-        try {
-            const response = await fetch(`${this.baseUrl}/v1/player/name`, {
-                method: 'PATCH',
-                headers: {
-                    'x-session-token': this.sessionToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ name: name })
-            });
-            return await response.json();
-        } catch (e) {
-            console.error("Failed to set player name", e);
-        }
+    async ensureSession() {
+        if (!this.sessionToken) await this.startSession();
     }
 
-    async submitScore(score, metadata = "") {
+    async submitScore(name, score, metadata = {}) {
+        await this.ensureSession();
+
         const payload = {
+            member_id: name,
             score: score,
-            metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata)
+            metadata: JSON.stringify(metadata)
         };
 
         if (!this.sessionToken || !this.isOnline) {
@@ -71,17 +73,47 @@ class LootLockerService {
                 },
                 body: JSON.stringify(payload)
             });
-            
-            if (!response.ok) throw new Error("Upload failed");
-            
-            const data = await response.json();
+
+            if (!response.ok) {
+                // Session may have expired — clear and retry once
+                if (response.status === 401) {
+                    localStorage.removeItem('ll_session_token');
+                    this.sessionToken = null;
+                    await this.startSession();
+                    return this.submitScore(name, score, metadata);
+                }
+                throw new Error(`Submit failed: ${response.status}`);
+            }
+
             this.isOnline = true;
-            return data;
+            return await response.json();
         } catch (e) {
             this.isOnline = false;
-            console.warn("Submit failed, queuing score", e);
+            console.warn("Submit failed, queuing", e);
             this.queueScore(payload);
             return { queued: true };
+        }
+    }
+
+    async getTopScores(count = 100) {
+        await this.ensureSession();
+        try {
+            const response = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/list?count=${count}`, {
+                method: 'GET',
+                headers: {
+                    'x-session-token': this.sessionToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            this.isOnline = true;
+            if (!data.items && data.rank) return [data];
+            if (data[0] && !data.items) return data;
+            return data.items || [];
+        } catch (e) {
+            this.isOnline = false;
+            console.error("Failed to get scores", e);
+            return [];
         }
     }
 
@@ -97,16 +129,13 @@ class LootLockerService {
 
     async processOfflineQueue() {
         if (!this.sessionToken || !this.isOnline) return;
-        
         const queue = JSON.parse(localStorage.getItem('ls_pending_scores') || '[]');
-        if (queue.length === 0) return;
-        
-        console.log("Processing offline queue...", queue.length);
+        if (!queue.length) return;
+        console.log(`Processing ${queue.length} queued scores...`);
         const remaining = [];
-        
         for (const item of queue) {
             try {
-                await fetch(`${this.baseUrl}/v1/leaderboards/bananas/submit`, {
+                const r = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/submit`, {
                     method: 'POST',
                     headers: {
                         'x-session-token': this.sessionToken,
@@ -114,29 +143,18 @@ class LootLockerService {
                     },
                     body: JSON.stringify(item)
                 });
-            } catch (e) {
+                if (!r.ok) throw new Error();
+            } catch {
                 remaining.push(item);
             }
         }
-        
         localStorage.setItem('ls_pending_scores', JSON.stringify(remaining));
     }
 
-    async getTopScores(count = 10) {
-        if (!this.sessionToken) return { items: [] };
-        try {
-            const response = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/list?count=${count}`, {
-                method: 'GET',
-                headers: { 'x-session-token': this.sessionToken }
-            });
-            const data = await response.json();
-            this.isOnline = true;
-            return data;
-        } catch (e) {
-            this.isOnline = false;
-            console.error("Failed to get scores", e);
-            throw e;
-        }
+    clearSession() {
+        localStorage.removeItem('ll_session_token');
+        this.sessionToken = null;
+        this.isOnline = false;
     }
 }
 
