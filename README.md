@@ -2,7 +2,7 @@
 
 Banana Survivors is a top-down survivor-style action game built with the Phaser 3 game engine. Players choose a unique banana-themed class, fight off waves of rotting enemies, collect pulp to level up, and unlock powerful abilities to survive as long as possible.
 
-![Loading Screen](file:///c:/Users/hmmm/banana_survivors/gameplay/loading.png)
+![Loading Screen](https://github.com/GunroarCannon/Banana-Survivors/blob/main/gameplay/loading.png)
 
 ## How Phaser Works
 
@@ -29,7 +29,7 @@ graph TD
 
 ## Project Structure
 
-![Gameplay Screenshot](file:///c:/Users/hmmm/banana_survivors/gameplay/gameplay.png)
+![Gameplay Screenshot](https://github.com/GunroarCannon/Banana-Survivors/blob/main/gameplay/gameplay.png)
 
 The project is organized into several JavaScript files, each handling a specific part of the game logic. This modular approach makes it easier to find and update specific features.
 
