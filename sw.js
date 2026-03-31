@@ -1,4 +1,4 @@
-const CACHE_NAME = 'banana-survivors-v1.01';
+const CACHE_NAME = 'banana-survivors-v1.02';
 const ASSETS = [
   '/',
   '/index.html',
