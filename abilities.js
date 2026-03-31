@@ -185,7 +185,8 @@ class AcidRain extends Ability {
 class SolarFlare extends Ability {
     constructor(s, p) {
         super(s, p, 'solar_flare', 'Shoots a beam of light that damages enemies');
-        this.angle = 0;
+        this.angle = Math.random() * Math.PI * 2;
+        this.rotateSpeed = 0.7 + Math.random() * 0.5;
         this.beamLen = 220;
         if (s) {
             this.beamGfx = s.add.graphics().setDepth(20);
@@ -196,7 +197,7 @@ class SolarFlare extends Ability {
         this.gfx.push(this.beamGfx);
     }
     update(delta) {
-        this.angle += 0.9 * (delta / 1000);
+        this.angle += this.rotateSpeed * (delta / 1000);
         this.tickTimer += delta;
         this.beamGfx.clear();
         const px = this.player.x, py = this.player.y;
@@ -245,12 +246,16 @@ class MolecularRebuild extends Ability {
 //  BRUISER abilities
 // ============================================================
 class HeavySlap extends Ability {
-    constructor(s, p) { super(s, p, 'heavy_slap', 'Slaps enemies in a cone in front of the player'); this.cooldown = 900; }
+    constructor(s, p) {
+        super(s, p, 'heavy_slap', 'Slaps enemies in a cone in front of the player');
+        this.cooldown = 900;
+        this.angleOffset = (Math.random() - 0.5) * 0.4; // +/- offset
+    }
     update(delta) {
         this.timer += delta;
         if (this.timer < this.cooldown / this.player.atkSpdMult) return;
         this.timer = 0;
-        const ang = Math.atan2(this.player.vy || 1, this.player.vx || 0);
+        const ang = Math.atan2(this.player.vy || 1, this.player.vx || 0) + this.angleOffset;
         // Fan arc
         for (const e of this.scene.enemies) {
             if (e.dead) continue;
@@ -297,14 +302,18 @@ class SpinKick extends Ability {
 }
 
 class Shockwave extends Ability {
-    constructor(s, p) { super(s, p, 'shockwave', 'Sends out shockwaves in four directions'); this.cooldown = 6000; }
+    constructor(s, p) {
+        super(s, p, 'shockwave', 'Sends out shockwaves in four directions');
+        this.cooldown = 6000;
+        this.angleOffset = Math.random() * Math.PI * 0.5;
+    }
     update(delta) {
         this.timer += delta;
         if (this.timer < this.cooldown / this.player.atkSpdMult) return;
         this.timer = 0;
-        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        for (const [dx, dy] of dirs) {
-            this.fireProjectile(Math.atan2(dy, dx), 380, 30, 0xff4422, 12, true, 1200);
+        const dirs = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+        for (const base of dirs) {
+            this.fireProjectile(base + this.angleOffset, 380, 30, 0xff4422, 12, true, 1200);
         }
         GameUtils.screenShake(this.scene, { intensity: 6, duration: 120 });
     }
@@ -313,7 +322,10 @@ class Shockwave extends Ability {
 class Thorns extends Ability {
     constructor(s, p) {
         super(s, p, 'thorns', 'Deals damage to enemies that touch the player');
-        this.angle = 0;
+        this.angle = Math.random() * Math.PI * 2;
+        this.rotDir = Math.random() > 0.5 ? 1 : -1;
+        this.rotSpeed = 0.03 + Math.random() * 0.04;
+        this.orbitRadius = 28 + Math.random() * 12;
         if (s) {
             this.g = s.add.graphics().setDepth(15);
             this.gfx.push(this.g);
@@ -321,14 +333,13 @@ class Thorns extends Ability {
     }
     update(delta) {
         if (!this.g) return;
-        this.angle += 0.05 * (delta / 16); // Rotate based on time
+        this.angle += this.rotDir * this.rotSpeed * (delta / 16); 
         this.g.clear();
         const px = this.player.x, py = this.player.y;
         
-        // Draw 3 rotating spikes around the player
         for (let i = 0; i < 3; i++) {
             const a = this.angle + (i * Math.PI * 2 / 3);
-            const dist = 32;
+            const dist = this.orbitRadius;
             const sx = px + Math.cos(a) * dist;
             const sy = py + Math.sin(a) * dist;
             
