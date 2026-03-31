@@ -12,7 +12,7 @@ class Enemy extends BaseObject {
             //randomize the speed for more varied enemies
             speed: rawDef.speed * Phaser.Math.Between(0.5, 1.0),
 
-            damage: Math.round(rawDef.damage * statMult) * 1000,
+            damage: Math.round(rawDef.damage * statMult),
             faction: CONFIG.FACTIONS.ENEMY,
         };
         super(scene, x, y, def);
