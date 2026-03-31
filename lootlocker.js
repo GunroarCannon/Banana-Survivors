@@ -1,11 +1,13 @@
 class LootLockerService {
     constructor() {
-        this.apiKey = "dev_c5adaa99b89344599c92f2f0e535f96a";
+        this.apiKey = window.LOOTLOCKER_API_KEY || "dev_c5adaa99b89344599c92f2f0e535f96a";
         this.domainKey = "jgzdbwyc";
         this.baseUrl = "https://jgzdbwyc.api.lootlocker.io/game";
-        this.sessionToken = localStorage.getItem('ll_session_token') || null;
+        this.lootUrl = "https://api.lootlocker.io"
+        this.sessionToken = null;//ocalStorage.getItem('ll_session_token') || null;
         this.playerIdentifier = localStorage.getItem('ll_player_identifier') || crypto.randomUUID();
         localStorage.setItem('ll_player_identifier', this.playerIdentifier);
+        this.leaderboardKey = "33850"; // Updated to the actual key in LootLocker dashboard
         this.isOnline = false;
     }
 
@@ -50,8 +52,30 @@ class LootLockerService {
         if (!this.sessionToken) await this.startSession();
     }
 
-    async submitScore(name, score, metadata = {}) {
+    async setPlayerName(name) {
         await this.ensureSession();
+        if (!this.sessionToken) return;
+        try {
+            const response = await fetch(`${this.baseUrl}/v1/player/name`, {
+                method: 'PATCH',
+                headers: {
+                    'x-session-token': this.sessionToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: name })
+            });
+            const data = await response.json();
+            this.isOnline = true;
+            return data;
+        } catch (e) {
+            this.isOnline = false;
+            console.error("Failed to set player name", e);
+        }
+    }
+
+    async submitScore(score, metadata = {}) {
+        await this.ensureSession();
+        const name = localStorage.getItem('player_name') || 'Anonymous';
 
         const payload = {
             member_id: name,
@@ -65,7 +89,7 @@ class LootLockerService {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/submit`, {
+            const response = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                 method: 'POST',
                 headers: {
                     'x-session-token': this.sessionToken,
@@ -80,7 +104,7 @@ class LootLockerService {
                     localStorage.removeItem('ll_session_token');
                     this.sessionToken = null;
                     await this.startSession();
-                    return this.submitScore(name, score, metadata);
+                    return this.submitScore(score, metadata);
                 }
                 throw new Error(`Submit failed: ${response.status}`);
             }
@@ -98,7 +122,7 @@ class LootLockerService {
     async getTopScores(count = 100) {
         await this.ensureSession();
         try {
-            const response = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/list?count=${count}`, {
+            const response = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/list?count=${count}`, {
                 method: 'GET',
                 headers: {
                     'x-session-token': this.sessionToken,
@@ -106,6 +130,7 @@ class LootLockerService {
                 }
             });
             const data = await response.json();
+            console.log("lootlocker scores are, ", data)
             this.isOnline = true;
             if (!data.items && data.rank) return [data];
             if (data[0] && !data.items) return data;
@@ -135,7 +160,10 @@ class LootLockerService {
         const remaining = [];
         for (const item of queue) {
             try {
-                const r = await fetch(`${this.baseUrl}/v1/leaderboards/bananas/submit`, {
+                item["score"] = 10
+
+                console.log(item);
+                const r = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                     method: 'POST',
                     headers: {
                         'x-session-token': this.sessionToken,

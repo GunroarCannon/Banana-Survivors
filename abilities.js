@@ -550,6 +550,11 @@ class DecayAura extends Ability {
     constructor(s, p) {
         super(s, p, 'decay_aura', 'Creates an aura that damages enemies');
         this.radius = 110;
+
+        if (!s) {
+            return;
+        }
+
         this.auraGfx = p.scene.add.circle(p.x, p.y, this.radius, 0xaa44ff, 0.12).setDepth(7);
         this.auraEdge = p.scene.add.arc(p.x, p.y, this.radius, 0, 360, false, 0xaa44ff, 0.5)
             .setDepth(8).setStrokeStyle(2, 0xaa44ff);

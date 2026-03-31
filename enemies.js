@@ -46,24 +46,44 @@ class Enemy extends BaseObject {
     makeSpecial() {
         if (this.isElite || this.isBoss) return; // don't double-scale bosses
         this.isSpecial = true;
-        const scale = Phaser.Math.FloatBetween(2, 3);
+
+        const types = [
+            { id: 'swift', color: 0xffa500, scale: [1.25, 1.5], speedMult: 2.0, hpMult: 1.0, dmgMult: 1.0, label: 'Swift' },
+            { id: 'strong', color: 0xff0000, scale: [1.5, 2.0], speedMult: 1.0, hpMult: 1.5, dmgMult: 2.5, label: 'Strong' },
+            { id: 'tank', color: 0x8b4513, scale: [2.2, 3.5], speedMult: 0.5, hpMult: 6.0, dmgMult: 1.2, label: 'Tank' },
+            { id: 'radioactive', color: 0x00ff00, scale: [1.3, 1.6], speedMult: 1.6, hpMult: 1.6, dmgMult: 1.6, label: 'Radioactive' },
+            { id: 'ethereal', color: 0xaa00ff, scale: [0.8, 1.1], speedMult: 1.8, hpMult: 0.8, dmgMult: 1.3, label: 'Ethereal' },
+            { id: 'frosted', color: 0x0088ff, scale: [1.4, 1.8], speedMult: 0.8, hpMult: 2.5, dmgMult: 1.4, label: 'Frosted' }
+        ];
+
+        const cfg = Phaser.Math.RND.pick(types);
+        this.specialType = cfg.id;
+
+        const scale = this.sprite.scale * Phaser.Math.FloatBetween(cfg.scale[0], cfg.scale[1]);
         this.sprite.setScale(scale);
-        
-        // Random vibrant color
-        const colors = [0xff00ff, 0x00ffff, 0xffff00, 0xff8800, 0x88ff00, 0x0088ff];
-        const color = Phaser.Math.RND.pick(colors);
-        this.sprite.setTint(color);
-        
+        this.baseScaleX = this.sprite.scaleX;
+        this.baseScaleY = this.sprite.scaleY;
+
+        this.sprite.setTintFill(cfg.color);
+        if (this.sprite.postFX) {
+            this.sprite.postFX.addGlow(cfg.color, 4, 0, false, 0.1, 10);
+        }
+
         // Buff stats
-        this.hp *= 2.5;
-        this.def.damage *= 1.5;
-        this.xp *= 3;
-        
-        // Add a subtle particle trail or glow if possible, but let's keep it simple for now
+        this.hp *= cfg.hpMult;
+        this.maxHp = this.hp;
+        this.speed *= cfg.speedMult;
+        this.damage *= cfg.dmgMult;
+        this.xp *= 3; // All specials give 3x XP
+
+        console.log(`Made ${cfg.label} special with scale ${scale.toFixed(2)}`);
+
+        // Visual emphasis: scale pulse
         this.scene.tweens.add({
             targets: this.sprite,
-            alpha: 0.8,
-            duration: 300,
+            scaleX: this.sprite.scaleX * 1.1,
+            scaleY: this.sprite.scaleY * 1.1,
+            duration: 500,
             yoyo: true,
             repeat: -1
         });
@@ -540,9 +560,9 @@ class WaveSpawner {
             const pos = this._spawnPos(pattern, i, count);
             const key = Phaser.Math.RND.pick(keys);
             const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult);
-            
+
             // Special monster chance: 2% + 5% * diffLevel
-            const specialChance = 0.02 + (0.05 * this.diffLevel);
+            const specialChance = .01 + (0.05 * this.diffLevel);
             if (Math.random() < specialChance) {
                 e.makeSpecial();
             }
@@ -557,7 +577,7 @@ class WaveSpawner {
         const pos = this._randomEdgePos();
         const key = Phaser.Math.RND.pick(keys);
         const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult * 1.5);
-        
+
         // Elites also have a chance to be "Extra Special"
         const specialChance = 0.05 + (0.05 * this.diffLevel);
         if (Math.random() < specialChance) {

@@ -63,13 +63,14 @@ class Player extends BaseObject {
     }
 
     unlockAbility(ablKey) {
-        if (this.abilities.find(a => a.key === ablKey)) return;
+        // if (this.abilities.find(a => a.key === ablKey)) return; // Allow stacking
         const cls = ABILITY_CLASSES[ablKey];
         if (cls) this.abilities.push(new cls(this.scene, this));
     }
 
     applyUpgrade(upg) {
         const e = upg.effect;
+        if (!e) return; // Safety check
         if (e.mode === 'add') {
             this[e.stat] = (this[e.stat] || 0) + e.value;
         } else {

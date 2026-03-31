@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Local data / Temp
+/tmp/
+.gemini/
+.agents/
+.agent/
+_agents/
+_agent/
+brain/
+*.log
+
+# Build output (if any)
+dist/
+build/
+out/

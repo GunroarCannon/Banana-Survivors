@@ -58,6 +58,7 @@ class BootScene extends Phaser.Scene {
         this.load.image('play', 'assets/icons/guard13007/play-button.png');
         this.load.image('home', 'assets/icons/delapouite/house.png');
         this.load.image('padlock', 'assets/icons/delapouite/plain-padlock.png');
+        this.load.image('pause', 'assets/icons/guard13007/pause-button.png');
 
         // Load Audio
         if (CONFIG.MUSIC) {
@@ -82,16 +83,28 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // PLEASE WAIT... text
+        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        this.add.text(W / 2, H / 2, 'PLEASE WAIT...', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '24px', fill: '#ffffff'
+        }).setOrigin(0.5);
+
         // Generate background texture (monochrome muddy floor)
         this._generateFloorTexture();
 
         // Generate rounded rect textures for UI
         const g2 = this.make.graphics({ add: false });
         g2.fillStyle(0xfdfae6, 1);
-        g2.lineStyle(2, 0x1a1a1a, 1);
+        //g2.lineStyle(2, 0x1a1a1a, 1);
         g2.fillRoundedRect(0, 0, 64, 64, 16);
-        g2.strokeRoundedRect(0, 0, 64, 64, 16);
+        //g2.strokeRoundedRect(0, 0, 64, 64, 16);
         g2.generateTexture('round_rect', 64, 64);
+
+        // Generate a clean, white, borderless rounded rectangle texture
+        g2.clear()
+        g2.fillStyle(0xffffff, 1); // Pure white for perfect tinting
+        g2.fillRoundedRect(0, 0, 64, 64, 8); // 16px corner radius
+        g2.generateTexture('bar_round_rect', 64, 64);
 
         g2.clear();
         g2.lineStyle(4, 0x1a1a1a, 1);
@@ -105,6 +118,8 @@ class BootScene extends Phaser.Scene {
         for (const [key, def] of Object.entries(ENEMY_DEFS)) {
             this._genEnemyTexture(key, def);
         }
+
+        console.log(":loot? ")
 
         // Load enemy icon images so they can be overlaid on the procedural texture.
         // Each icon uses a prefixed key 'ei_<name>' so it doesn't clash with UI icons.
@@ -133,8 +148,10 @@ class BootScene extends Phaser.Scene {
 
         // Initialize LootLocker
         if (window.lootLocker) {
+            console.log("STARTING LOOTLOCKER SESSION")
             window.lootLocker.startSession();
         }
+        else console.log("NOT STARTING LOOTLOCKER SESSION")
 
         this.scene.start('MainMenu');
     }
@@ -447,8 +464,8 @@ class MainMenuScene extends Phaser.Scene {
                 this.add.image(x, y, 'background').setOrigin(0, 0);
 
         // Logo / Title
-        const logoY = H * 0.25;
-        this.add.image(W / 2 - 100, logoY - 20, 'banana').setDisplaySize(60, 60).setAngle(-15);
+        const logoY = H * 0.28;
+        this.add.image(W / 2, logoY - 110, 'banana').setDisplaySize(80, 80).setAngle(0);
         this.add.text(W / 2, logoY, 'BANANA\nSURVIVORS', {
             fontFamily: "'Fredoka One', sans-serif", fontSize: '48px', fill: '#2c3e50',
             stroke: '#ffd700', strokeThickness: 4, align: 'center'
@@ -489,7 +506,7 @@ class MainMenuScene extends Phaser.Scene {
 
         // Global Navigation
         this.input.keyboard.on('keydown-ESC', () => {
-             // Main menu ESC could exit or do nothing
+            // Main menu ESC could exit or do nothing
         });
 
         // Best score display (bottom)
@@ -547,7 +564,7 @@ class LeaderboardScene extends Phaser.Scene {
 
     async _fetchScores() {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-        
+
         // Clean up old items
         this.listItems.forEach(i => i.destroy());
         this.listItems = [];
@@ -573,7 +590,7 @@ class LeaderboardScene extends Phaser.Scene {
                     const r = this.add.text(60, py, `#${item.rank}`, {
                         fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50'
                     }).setOrigin(0, 0.5);
-                    
+
                     const n = this.add.text(100, py, item.player.name || `Player ${item.player.id}`, {
                         fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50', fontWeight: 'bold'
                     }).setOrigin(0, 0.5);
@@ -591,7 +608,7 @@ class LeaderboardScene extends Phaser.Scene {
                                 fontFamily: "'Fredoka One', sans-serif", fontSize: '10px', fill: '#888'
                             }).setOrigin(0, 0.5);
                             this.listItems.push(m);
-                        } catch(e) {}
+                        } catch (e) { }
                     }
                 });
             }
@@ -731,14 +748,17 @@ class GameScene extends Phaser.Scene {
         // Keyboard
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys({ up: 'W', down: 'S', left: 'A', right: 'D' });
-        this.input.keyboard.on('keydown-ESC', () => {
-            this.paused = !this.paused;
-            if (this.paused) {
-                this._showPauseOverlay();
-            } else {
-                this._hidePauseOverlay();
+        this.input.keyboard.on('keydown-ESC', () => this._togglePause());
+
+        // Mobile Back Button / PWA Intercept
+        history.pushState(null, null, location.href);
+        this._popstateHandler = (e) => {
+            if (this.scene.isActive('Game')) {
+                this._togglePause();
+                history.pushState(null, null, location.href); // Push again to keep intercepting
             }
-        });
+        };
+        window.addEventListener('popstate', this._popstateHandler);
 
         // Events
         this.events.on('player_hp_changed', (hp, max) => this.ui.updateHp(hp, max));
@@ -749,6 +769,11 @@ class GameScene extends Phaser.Scene {
         this.events.on('difficulty_up', (lv) => {
             GameUtils.floatText(this, this.player.x, this.player.y - 80,
                 '⚠ DIFFICULTY ' + lv, '#ff6622', 16);
+        });
+
+        this.events.on('request_pause', () => this._togglePause());
+        this.events.on('shutdown', () => {
+            window.removeEventListener('popstate', this._popstateHandler);
         });
         // ── SFX: Boss spawn warhorn ─────────────────────────────────
         this.events.on('boss_spawn', () => {
@@ -797,7 +822,7 @@ class GameScene extends Phaser.Scene {
         const uiScene = this.ui.scene;
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
         this.pauseOverlay = uiScene.add.container(0, 0).setDepth(4000);
-        
+
         const bg = uiScene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.6).setInteractive();
         this.pauseOverlay.add(bg);
 
@@ -806,13 +831,13 @@ class GameScene extends Phaser.Scene {
         this.pauseOverlay.add([panel.bg, panel.stroke, panel.title]);
 
         const resumeBtn = UIManager.createMenuButton(uiScene, W / 2, H / 2, 200, 50, 'CONTINUE', () => {
-            this._hidePauseOverlay();
-            this.paused = false;
+            this._togglePause(); // Use unified toggle
         });
         resumeBtn.btn.setDepth(4004); resumeBtn.stroke.setDepth(4005); resumeBtn.txt.setDepth(4006);
-        
+
         const quitBtn = UIManager.createMenuButton(uiScene, W / 2, H / 2 + 70, 200, 50, 'QUIT', () => {
             this._hidePauseOverlay();
+            window.removeEventListener('popstate', this._popstateHandler);
             this.scene.stop('UI');
             this.scene.start('MainMenu');
         });
@@ -820,6 +845,15 @@ class GameScene extends Phaser.Scene {
 
         this.pauseOverlay.add([resumeBtn.btn, resumeBtn.stroke, resumeBtn.txt, quitBtn.btn, quitBtn.stroke, quitBtn.txt]);
         this._pauseUIElements = [resumeBtn, quitBtn, panel, bg];
+    }
+
+    _togglePause() {
+        this.paused = !this.paused;
+        if (this.paused) {
+            this._showPauseOverlay();
+        } else {
+            this._hidePauseOverlay();
+        }
     }
 
     _hidePauseOverlay() {
@@ -1102,6 +1136,7 @@ class GameScene extends Phaser.Scene {
         // Handle Best Run
         this._checkBestRun(runData);
 
+        console.log("dead player")
         // Leaderboard Submission
         this._handleScoreSubmission(runData);
 
@@ -1135,6 +1170,7 @@ class GameScene extends Phaser.Scene {
     }
 
     async _handleScoreSubmission(run) {
+        console.log("trying to submit a score")
         let playerName = localStorage.getItem('player_name');
         if (!playerName) {
             playerName = window.prompt("NEW HERO! ENTER YOUR NAME:", "Banana Warrior");
@@ -1176,37 +1212,37 @@ class UpgradeManager {
         };
 
         for (const [key, AbilityClass] of Object.entries(ABILITY_CLASSES)) {
-            if (player.abilities.find(a => a.key === key)) continue; // Check if player already has the ability
             // Only suggest abilities available for this class
             if (!CLASS_DEFS[classKey].abilities.includes(key)) continue;
 
-            //tmp abilities 
-            const ab = new AbilityClass(null, { atkSpdMult: 1, aoeMult: 1, damageMult: 1 });
-            pool.push({
-                id: key, isAbility: true,
-                label: ab.name, desc: ab.desc,
-                icon: iconMap[key] || 'leaf'
-            });
-        }
-
-        // Add ability-unlock options
-        for (const ablKey of abilityKeys.slice(2)) { // skip first 2 (core, already owned)
-            if (!player.abilities.find(a => a.key === ablKey)) {
-                pool.push({
-                    id: 'unlock_' + ablKey,
-                    icon: iconMap[ablKey] || 'star', // Use iconMap for unlockable abilities too
-                    label: ablKey.replace(/_/g, ' ').toUpperCase(),
-                    desc: 'Unlock new ability',
-                    abilityKey: ablKey,
-                    effect: { stat: 'dummy', value: 0, mode: 'add' },
-                });
+            if (player.abilities.find(a => a.key === key)) {
+                // If they already have it, we can still show it for "stacking"
             }
+
+            // Instantiate a dummy version to extract its description
+            let ab;
+            try {
+                ab = new AbilityClass(null, { atkSpdMult: 1, aoeMult: 1, damageMult: 1 });
+            } catch (e) {
+                console.log(e);
+                ab = new Ability(null, null, key, 'New Ability!');
+            }
+            pool.push({
+                id: key,
+                isAbility: true,
+                label: key.replace(/_/g, ' ').toUpperCase(),
+                desc: ab.description || 'New Ability!',
+                icon: iconMap[key] || 'star',
+                abilityKey: key,
+                effect: { stat: 'dummy', value: 0, mode: 'add' }, // Prevent crash in applyUpgrade
+            });
         }
 
         // Remove recently picked (avoid repeats)
         pool = pool.filter(u => !this.pickedIds.has(u.id));
         if (pool.length < 3) { this.pickedIds.clear(); pool = [...UPGRADE_POOL]; }
 
+        console.log(pool)
         // Shuffle and pick 3
         Phaser.Utils.Array.Shuffle(pool);
         const picked = pool.slice(0, 3);
