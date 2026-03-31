@@ -45,7 +45,8 @@ const CONFIG = {
         freeze: 'assets/sfx/sfx_other/freeze.ogg',                   // Glacial Behemoth freeze
         explosion: 'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/EXPLOSION Bang 04.ogg', // Magma slam
         zap: 'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/ELECTRIC Shock Zap Short 03.ogg',
-        charge: 'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/SWOOSH_Whoosh_Light_01.ogg',
+        charge: 'assets/sfx/battle_sound_effects/swish_2.wav',
+        //'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/SWOOSH_Whoosh_Light_01.ogg',
         charge_impact: 'assets/sfx/hits/3.ogg',
         // ── Boss / elite ──────────────────────────────────────────
         boss_spawn: 'assets/sfx/sfx_other/warhorn.ogg',                  // boss warning
@@ -57,7 +58,11 @@ const CONFIG = {
     // ── Pulp (XP) ────────────────────────────────────────────
     PULP_MAGNET_RADIUS: 80,    // auto-collect within this px
     PULP_MAGNET_SPEED: 320,
-    PULP_PER_LEVEL: [0, 10, 25, 50, 90, 140, 210, 300, 410, 550], // XP thresholds
+    // [0, 10, 35, 90, 220, 500, 1100, 2400, 5000, 10000, 18000, 30000]
+    PULP_PER_LEVEL: [10, 25, 55, 95, 160, 240, 350, 480, 640, 810,
+        1050, 1280, 1580, 1890, 2250, 2650, 3100, 3600, 4150, 4750,
+        5400, 6100, 6900, 7750, 8650, 9600, 10650, 11750, 12950, 15500],
+    //  [0, 10, 35, 90, 220, 500, 1100, 2400, 5000, 10000, 18000, 30000], // XP thresholds
 
     // ── Difficulty Scaling ───────────────────────────────────
     SCALE_INTERVAL_SEC: 30,    // difficulty tick every N seconds
@@ -66,7 +71,7 @@ const CONFIG = {
     BOSS_MILESTONES_SEC: [300, 600, 900], // 5 / 10 / 15 min
 
     // ── Wave Spawner ─────────────────────────────────────────
-    SPAWN_INTERVAL_MS: 1200,
+    SPAWN_INTERVAL_MS: 1500,
     SPAWN_BASE_COUNT: 3,
     SPAWN_VIEWPORT_PAD: 60,    // px outside camera edge
 
@@ -102,6 +107,7 @@ const ENEMY_DEFS = {
         source: 'maggot',
         label: 'Maggot',
         width: 50, height: 50,
+        rotateToDirection: false,
         hp: 18,
         speed: 25,
         damage: 6,
@@ -114,8 +120,8 @@ const ENEMY_DEFS = {
     mold_fly: {
         key: 'mold_fly',
         label: 'Mold Fly',
-        source: "zombie_banana",
-        icon: 'ei_dragonfly',         // lorc/dragonfly — insect silhouette
+        source: "spore_moth",
+        icson: 'ei_dragonfly',         // lorc/dragonfly — insect silhouette
         width: 50, height: 50,
         hp: 10,
         speed: 140,
@@ -145,7 +151,7 @@ const ENEMY_DEFS = {
         key: 'spore_moth',
         source: "zombie_banana",
         label: 'Spore Moth',
-        icon: 'ei_butterfly',         // lorc/butterfly — moth-like wings
+        icson: 'ei_butterfly',         // lorc/butterfly — moth-like wings
         width: 32, height: 32,
         hp: 30,
         speed: 110,
@@ -159,9 +165,9 @@ const ENEMY_DEFS = {
     },
     fungal_horror: {
         key: 'fungal_horror',
-        source: "zombie_banana",
+        source: "fungal_horror",
         label: 'Fungal Horror',
-        icon: 'ei_mushroom',          // lorc/mushroom — fungal theme
+        icosn: 'ei_mushroom',          // lorc/mushroom — fungal theme
         width: 54, height: 54,
         hp: 180,
         speed: 38,
@@ -194,9 +200,10 @@ const ENEMY_DEFS = {
     storm_titan: {
         key: 'storm_titan',
         label: 'Storm Titan',
-        icon: 'ei_lightning_storm',   // lorc/lightning-storm — sparks and bolts
+        moveType: 'charge',
+        source: 'rot_god',   // lorc/lightning-storm — sparks and bolts
         // ~4× player (42×42 → 168×168)
-        width: 168, height: 168,
+        width: 168 * 2, height: 168 * 2,
         hp: 1200,
         speed: 28,
         damage: 40,
@@ -204,9 +211,9 @@ const ENEMY_DEFS = {
         color: 0x44ccff,
         intensity: 4,
         // 'lightning_chain' AI fires a multi-target lightning bolt at intervals
-        ai: 'lightning_chain',
+        ai: 'magma_slam',//'lightning_chain',
         isElite: true,
-        animType: 'rock',
+        animType: 'bounce',
     },
 
     glacial_behemoth: {
@@ -262,7 +269,7 @@ const ENEMY_DEFS = {
     beetle: {
         key: 'beetle',
         label: 'Armored Beetle',
-        icon: 'ei_tank',
+        source: 'zombie_banana',
         width: 38, height: 38,
         hp: 120,
         speed: 50,
@@ -271,13 +278,13 @@ const ENEMY_DEFS = {
         color: 0x556b2f,
         intensity: 2,
         ai: 'seek',
-        animType: 'rock'
+        animType: 'bounce'
     },
     centipede: {
         key: 'centipede',
         label: 'Giant Centipede',
         icon: 'ei_centipede',
-        width: 45, height: 45,
+        width: 105, height: 45,
         hp: 250,
         speed: 90,
         damage: 18,
@@ -291,7 +298,8 @@ const ENEMY_DEFS = {
     behemoth_charger: {
         key: 'behemoth_charger',
         label: 'Behemoth Charger',
-        icon: 'ei_bull-horns',
+        icosn: 'ei_bull-horns',
+        source: "iron_husk",
         width: 420, height: 420,
         hp: 5000,
         speed: 40,
@@ -306,7 +314,7 @@ const ENEMY_DEFS = {
     charger_scout: {
         key: 'charger_scout',
         label: 'Charger Scout',
-        icon: 'ei_bull-horns',
+        source: 'fungal_horror-horns',
         width: 84, height: 84,
         hp: 400,
         speed: 100,

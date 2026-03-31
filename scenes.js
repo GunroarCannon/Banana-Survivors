@@ -20,11 +20,16 @@ class BootScene extends Phaser.Scene {
         const sources = {
             zombie_banana: 'assets/enemies/zombie.png',
             maggot: 'assets/enemies/maggot.png',
+            fungal_horror: 'assets/enemies/fungal_horror.png',
+            spore_moth: 'assets/enemies/spore_moth.png',
+            rot_god: 'assets/enemies/rotgod.png',
+
+            bat: 'assets/bat.png',
 
             alchemist: 'assets/players/alchemist.png',
             bruiser: 'assets/players/bruiser.png',
             grave_ripener: 'assets/players/grave_ripener.png',
-            iron_hust: 'assets/players/iron_hust.png',
+            iron_husk: 'assets/players/iron_husk.png',
             overseer: 'assets/players/overseer.png',
             slicer: 'assets/players/slicer.png',
 
@@ -36,6 +41,7 @@ class BootScene extends Phaser.Scene {
         })
 
         const icons = {
+            ei_tentacles_skull: 'lorc/tentacles-skull',
             heart: 'skoll/hearts', skull: 'lorc/skull-crack', lightning: 'lorc/lightning-trio',
             magnet: 'lorc/magnet', leaf: 'lorc/leaf-swirl', explosion: 'lorc/explosion-rays',
             potion: 'caro-asercion/round-potion', trophy: 'delapouite/diamond-trophy', blood: 'skoll/blood',
@@ -47,7 +53,6 @@ class BootScene extends Phaser.Scene {
             this.load.image(k, `assets/icons/${i}.png`)
         });
 
-        this.load.image('bat', 'assets/icons/delapouite/bat.png');
         this.load.image('lightning', 'assets/icons/lorc/lightning-arc.png');
         this.load.image('stopwatch', 'assets/icons/lorc/stopwatch.png');
         this.load.image('magnet', 'assets/icons/lorc/magnet.png');
@@ -576,7 +581,7 @@ class LeaderboardScene extends Phaser.Scene {
         this.listItems.push(loading);
 
         try {
-            const response = await window.lootLocker.getTopScores(10);
+            const response = { items: await window.lootLocker.getTopScores(10) };
             loading.destroy();
 
             if (!response.items || response.items.length === 0) {
@@ -1176,8 +1181,9 @@ class GameScene extends Phaser.Scene {
             playerName = window.prompt("NEW HERO! ENTER YOUR NAME:", "Banana Warrior");
             if (!playerName) playerName = "Anonymous";
             localStorage.setItem('player_name', playerName);
-            await window.lootLocker.setPlayerName(playerName);
         }
+        // Always sync name before submission for safety
+        await window.lootLocker.setPlayerName(playerName);
 
         const metadata = {
             class: run.className,
@@ -1185,7 +1191,9 @@ class GameScene extends Phaser.Scene {
             lvl: run.level
         };
 
-        await window.lootLocker.submitScore(run.kills, metadata);
+        console.log("awaaiting score submission", metadata)
+        const scoreData = await window.lootLocker.submitScore(run.kills, metadata);
+        console.log("score submitted", scoreData)
     }
 }
 

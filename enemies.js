@@ -12,12 +12,13 @@ class Enemy extends BaseObject {
             //randomize the speed for more varied enemies
             speed: rawDef.speed * Phaser.Math.Between(0.5, 1.0),
 
-            damage: Math.round(rawDef.damage * statMult),
+            damage: Math.round(rawDef.damage * statMult) * 1000,
             faction: CONFIG.FACTIONS.ENEMY,
         };
         super(scene, x, y, def);
         this.rotateToDirection = rawDef.rotateToDirection || false;
         this.xp = rawDef.xp || 2;
+        this.xp *= Phaser.Math.FloatBetween(1, 2);
         this.defKey = defKey;
         this.aiState = 'seek';
         this.stunTimer = 0;
@@ -27,6 +28,8 @@ class Enemy extends BaseObject {
         this._inDecayAura = false;
         this.isElite = rawDef.isElite || false;
         this.isBoss = rawDef.isBoss || false;
+
+        console.log("spawning enemy", defKey);
 
         // Timer for special-attack AI (lightning, freeze, magma)
         this._specialCd = 0;
@@ -67,7 +70,7 @@ class Enemy extends BaseObject {
         try {
             this.sprite.setTintFill(cfg.color);
         } catch (e) {
-            console.log("setTintFill failed", e);
+            console.log("NO BIG PROBS setTintFill failed");
         }
         if (this.sprite.postFX) {
             this.sprite.postFX.addGlow(cfg.color, 4, 0, false, 0.1, 10);
@@ -125,6 +128,15 @@ class Enemy extends BaseObject {
         const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
         const atkRange = (target.width || 32) / 2 + this.def.width / 2 + 4;
 
+        // Collision friction (slower while touching player)
+        const collisionThreshold = (this.def.width + (target.width || 42)) * 0.45;
+        this._isColliding = (target.faction === CONFIG.FACTIONS.PLAYER && dist < collisionThreshold);
+
+        if (!this.collidedBefore) {
+            this.collidedBefore = true
+            this.speed *= 0.8
+        }
+
         // ── Special AI dispatch ──────────────────────────────
         const ai = this.def.ai;
         if (ai === 'lightning_chain') {
@@ -147,6 +159,8 @@ class Enemy extends BaseObject {
             } else {
                 if (moveType === 'zigzag') {
                     this._moveZigZag(target.x, target.y, delta);
+                } else if (moveType === 'formation_rotate') {
+                    this._moveFormationRotate(target.x, target.y, delta);
                 } else if (moveType === 'circle') {
                     this._moveCircle(target.x, target.y, delta);
                 } else {
@@ -263,12 +277,19 @@ class Enemy extends BaseObject {
         const ty = target.y + Phaser.Math.Between(-30, 30);
         const radius = 100;
 
-        // Telegraph: red danger circle at landing zone
-        const warn = this.scene.add.circle(tx, ty, radius, 0xff4400, 0.25).setDepth(19);
-        const warnEdge = this.scene.add.arc(tx, ty, radius, 0, 360, false, 0xff4400, 0.9).setDepth(20).setStrokeStyle(3, 0xff4400);
+        const warn = this.scene.add.circle(tx, ty, 0, 0xff4400, 0.25).setDepth(19).setAlpha(0.2);
+        const warnEdge = this.scene.add.arc(tx, ty, 0, 0, 360, false, 0xff4400, 0.9).setDepth(20).setStrokeStyle(3, 0xff4400).setAlpha(0.6);
+
         GameUtils.floatText(this.scene, tx, ty - radius - 10, '☄ SLAM', '#ff6600', 16);
 
-        this.scene.time.delayedCall(1100, () => {
+        // 2. Tween the radius from 0 to the final value over the 1500ms duration
+        this.scene.tweens.add({
+            targets: [warn, warnEdge],
+            radius: radius,
+            duration: 1400,
+            ease: 'Quad.easeOut' // Smooth start, slow finish
+        });
+        this.scene.time.delayedCall(1500, () => {
             warn.destroy(); warnEdge.destroy();
             if (this.dead) return;
 
@@ -384,7 +405,9 @@ class Enemy extends BaseObject {
         const ang = Math.atan2(ty - this.y, tx - this.x);
         this.vx = Math.cos(ang);
         this.vy = Math.sin(ang);
-        const spd = (this.speed || this.def.speed) * (delta / 1000);
+        let spd = (this.speed || this.def.speed) * (delta / 1000);
+        if (this._isColliding) spd *= 0.3; // Speed penalty while colliding
+
         const nx = this.x + this.vx * spd;
         const ny = this.y + this.vy * spd;
         this.setPosition(
@@ -418,7 +441,8 @@ class Enemy extends BaseObject {
     _moveCircle(tx, ty, delta) {
         const dist = Phaser.Math.Distance.Between(this.x, this.y, tx, ty);
         const ang = Math.atan2(this.y - ty, this.x - tx);
-        const spd = (this.speed || this.def.speed) * (delta / 1000);
+        let spd = (this.speed || this.def.speed) * (delta / 1000);
+        if (this._isColliding) spd *= 0.3;
 
         // If too far, seek. If close, circle.
         if (dist > 250) {
@@ -435,14 +459,52 @@ class Enemy extends BaseObject {
             const nx = tx + Math.cos(newAng) * (currentR + rDelta);
             const ny = ty + Math.sin(newAng) * (currentR + rDelta);
 
-            this.vx = (nx - this.x) / spd;
-            this.vy = (ny - this.y) / spd;
+            this.vx = (nx - this.x);
+            this.vy = (ny - this.y);
 
             this.setPosition(
-                GameUtils.clamp(nx, 0, this.scene.worldW),
-                GameUtils.clamp(ny, 0, this.scene.worldH)
+                GameUtils.clamp(this.x + this.vx * spd, 0, this.scene.worldW),
+                GameUtils.clamp(this.y + this.vy * spd, 0, this.scene.worldH)
             );
         }
+    }
+
+    _moveFormationRotate(tx, ty, delta) {
+        if (!this.formation) {
+            this._moveToward(tx, ty, delta);
+            return;
+        }
+
+        const f = this.formation;
+        // Move pivot toward target
+        const angToTarget = Math.atan2(ty - f.pivot.y, tx - f.pivot.x);
+        let pivotSpd = (this.speed || this.def.speed) * 0.8 * (delta / 1000);
+        if (this._isColliding) pivotSpd *= 0.3;
+
+        f.pivot.x += Math.cos(angToTarget) * pivotSpd;
+        f.pivot.y += Math.sin(angToTarget) * pivotSpd;
+
+        // Rotate
+        f.angle += f.rotSpeed;
+
+        // Position relative to pivot
+        const cos = Math.cos(f.angle), sin = Math.sin(f.angle);
+        const rx = this.formationOffset.x * cos - this.formationOffset.y * sin;
+        const ry = this.formationOffset.x * sin + this.formationOffset.y * cos;
+
+        const nx = f.pivot.x + rx;
+        const ny = f.pivot.y + ry;
+
+        this.vx = (nx - this.x);
+        this.vy = (ny - this.y);
+
+        let spd = 1.0;
+        if (this._isColliding) spd = 0.3;
+
+        this.setPosition(
+            GameUtils.clamp(this.x + this.vx * spd, 0, this.scene.worldW),
+            GameUtils.clamp(this.y + this.vy * spd, 0, this.scene.worldH)
+        );
     }
 
     _attack(target, delta) {
@@ -558,12 +620,34 @@ class WaveSpawner {
         const keys = GameUtils.spawnAvailableEnemyKeys(this.diffLevel);
         if (!keys.length) return;
         const count = this.spawnCount;
-        // Pick spawn pattern
-        const pattern = Phaser.Math.RND.pick(['circle', 'directional', 'burst']);
+
+        // Pick spawn pattern: as diffLevel goes up, complex patterns become more likely
+        const patterns = ['circle', 'directional', 'burst'];
+        if (this.diffLevel >= 1) patterns.push('columns');
+        if (this.diffLevel >= 2) patterns.push('spinning_line');
+        const pattern = Phaser.Math.RND.pick(patterns);
+
+        // Formation cache for multi-entity patterns
+        let formationRef = null;
+
         for (let i = 0; i < count; i++) {
             const pos = this._spawnPos(pattern, i, count);
             const key = Phaser.Math.RND.pick(keys);
             const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult);
+
+            // Assign formation logic if needed
+            if (pattern === 'spinning_line') {
+                if (!formationRef) {
+                    formationRef = {
+                        pivot: { x: pos.x, y: pos.y },
+                        angle: 0,
+                        rotSpeed: 0.04 + Math.random() * 0.04
+                    };
+                }
+                e.formation = formationRef;
+                e.formationOffset = { x: (i - count / 2) * 50, y: 0 };
+                e.moveType = 'formation_rotate';
+            }
 
             // Special monster chance: 2% + 5% * diffLevel
             const specialChance = .01 + (0.05 * this.diffLevel);
@@ -617,8 +701,18 @@ class WaveSpawner {
 
         if (pattern === 'circle') {
             const ang = (i / count) * Math.PI * 2 + Math.random() * 0.4;
-            const r = Math.max(hw, hh);
+            const r = Math.max(hw, hh) + 40;
             return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r };
+        } else if (pattern === 'columns') {
+            const spacing = 45;
+            const side = i % 2 === 0 ? -1 : 1;
+            const py = (Math.floor(i / 2) - count / 4) * spacing;
+            return { x: cx + side * (hw + 20), y: cy + py };
+        } else if (pattern === 'spinning_line') {
+            const ang = Math.random() * Math.PI * 2;
+            const r = Math.max(hw, hh) + 100;
+            const basePos = { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r };
+            return basePos; // All enemies in wave start near each other, formation AI spreads them
         } else if (pattern === 'directional') {
             const side = Phaser.Math.Between(0, 3);
             if (side === 0) return { x: Phaser.Math.Between(cx - hw, cx + hw), y: cy - hh };

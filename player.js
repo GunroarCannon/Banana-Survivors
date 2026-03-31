@@ -70,14 +70,19 @@ class Player extends BaseObject {
 
     applyUpgrade(upg) {
         const e = upg.effect;
+        console.log(e, " effect upgrade")
         if (e.mode === 'add') {
+            console.log("added", this[e.stat])
             this[e.stat] = (this[e.stat] || 0) + e.value;
+            console.log("added finished", this[e.stat])
             // If we just increased max HP, also increase current HP and update UI
             if (e.stat === 'maxHp') {
+                console.log("added max hp")
                 this.hp += e.value;
                 this.scene.events.emit('player_hp_changed', this.hp, this.maxHp);
             }
         } else {
+            console.log("multiplied")
             this[e.stat] = (this[e.stat] || 1) * e.value;
         }
         // If it references an ability key
@@ -95,6 +100,8 @@ class Player extends BaseObject {
     }
 
     update(delta, entities) {
+
+        this.maxHp = Math.max(this.maxHp, this.hp);
         // Regen
         if (this.hpRegen > 0) {
             this.hp = Math.min(this.maxHp, this.hp + this.hpRegen * (delta / 1000));

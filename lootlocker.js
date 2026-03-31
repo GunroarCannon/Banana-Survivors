@@ -40,6 +40,11 @@ class LootLockerService {
             localStorage.setItem('ll_session_token', this.sessionToken);
             this.isOnline = true;
             console.log("LootLocker session started", data);
+
+            // Sync player name if available
+            const name = localStorage.getItem('player_name');
+            if (name) this.setPlayerName(name);
+
             this.processOfflineQueue();
             return data;
         } catch (e) {
@@ -56,10 +61,11 @@ class LootLockerService {
         await this.ensureSession();
         if (!this.sessionToken) return;
         try {
-            const response = await fetch(`${this.baseUrl}/v1/player/name`, {
+            const response = await fetch(`https://api.lootlocker.io/game/player/name`, {
                 method: 'PATCH',
                 headers: {
                     'x-session-token': this.sessionToken,
+                    'LL-Version': '2021-03-01',
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ name: name })
@@ -74,7 +80,9 @@ class LootLockerService {
     }
 
     async submitScore(score, metadata = {}) {
+        console.log("starting submit lootlocker")
         await this.ensureSession();
+        console.log("session ensured ", this.sessionToken)
         const name = localStorage.getItem('player_name') || 'Anonymous';
 
         const payload = {
@@ -83,12 +91,16 @@ class LootLockerService {
             metadata: JSON.stringify(metadata)
         };
 
+        console.log("trying to submit score, ", payload)
+
         if (!this.sessionToken || !this.isOnline) {
             this.queueScore(payload);
+            console.log("lootlocker score queued")
             return { queued: true };
         }
 
         try {
+            console.log("lootlocker score submitted")
             const response = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                 method: 'POST',
                 headers: {
@@ -109,6 +121,7 @@ class LootLockerService {
                 throw new Error(`Submit failed: ${response.status}`);
             }
 
+            console.log("lootlocker score submitted babaaayy", payload, response)
             this.isOnline = true;
             return await response.json();
         } catch (e) {
@@ -160,8 +173,6 @@ class LootLockerService {
         const remaining = [];
         for (const item of queue) {
             try {
-                item["score"] = 10
-
                 console.log(item);
                 const r = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                     method: 'POST',

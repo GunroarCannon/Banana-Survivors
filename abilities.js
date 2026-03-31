@@ -503,7 +503,8 @@ class FruitBatSwarm extends Ability {
         for (let i = 0; i < this.batCount; i++) {
             const b = {
                 angle: (i / this.batCount) * Math.PI * 2,
-                sprite: this.scene.add.image(0, 0, 'bat').setDepth(14).setDisplaySize(20, 20),
+                sprite: this.scene.add.image(0, 0, 'bat').setDepth(14).setDisplaySize(24, 24),
+                flapPhase: Math.random() * Math.PI * 2
             };
             this.bats.push(b);
             this.gfx.push(b.sprite);
@@ -512,6 +513,9 @@ class FruitBatSwarm extends Ability {
     update(delta) {
         for (const b of this.bats) {
             b.angle += 2.5 * (delta / 1000);
+            b.flapPhase += 0.2; // Flap animation
+            b.sprite.setScale((24 / b.sprite.width), (24 / b.sprite.height) * (0.8 + Math.sin(b.flapPhase) * 0.2));
+            
             b.sprite.setPosition(
                 this.player.x + Math.cos(b.angle) * 55,
                 this.player.y + Math.sin(b.angle) * 55
@@ -846,23 +850,51 @@ class GroundPound extends Ability {
 }
 
 class UnstoppableCharge extends Ability {
-    constructor(s, p) { super(s, p, 'unstoppable_charge', 'Charges in a direction, damaging enemies'); this.cooldown = 8000; }
+    constructor(s, p) { 
+        super(s, p, 'unstoppable_charge', 'Charges in a direction, damaging enemies'); 
+        this.cooldown = 8000; 
+        this.trailTimer = 0;
+    }
     update(delta) {
         this.timer += delta;
+        
+        // Visuals during charge
+        if (this._charging) {
+            this.trailTimer += delta;
+            if (this.trailTimer > 60) { // Spawn ghost every 60ms
+                this.trailTimer = 0;
+                const ghost = this.scene.add.image(this.player.x, this.player.y, this.player.sprite.texture.key)
+                    .setDepth(this.player.sprite.depth - 1)
+                    .setScale(this.player.sprite.scaleX, this.player.sprite.scaleY)
+                    .setAlpha(0.5).setTint(0xffffff);
+                this.scene.tweens.add({
+                    targets: ghost, alpha: 0, duration: 400, onComplete: () => ghost.destroy()
+                });
+            }
+        }
+
         if (this.timer < this.cooldown / this.player.atkSpdMult) return;
         this.timer = 0;
+
+        // Activation
+        this._charging = true;
         this.player.speedMult += 2;
         this.player.invincible = true;
         this.player.iframeTimer = 2000;
-        //invalid: this.player.sprite.setFillStyle(0xffffff);
+        
+        // Toast and Impact
+        GameUtils.floatText(this.scene, this.player.x, this.player.y - 45, 'UNSTOPPABLE CHARGE!', '#ffffff', 22);
+        GameUtils.screenShake(this.scene, { intensity: 10, duration: 250 });
+        this.scene.cameras.main.flash(200, 255, 255, 255, 0.2);
+
+        // Glow effect
+        const glow = this.player.sprite.postFX.addGlow(0xffffff, 4, 1);
+
         this.scene.time.delayedCall(2000, () => {
             this.player.speedMult -= 2;
-            //not a function
-            //this.player.sprite.setFillStyle(this.player.def.color);
+            this._charging = false;
+            this.player.sprite.postFX.remove(glow);
         });
-        // Damage enemies we pass through — checked in GameScene enemy collision
-        this._charging = true;
-        this.scene.time.delayedCall(2000, () => this._charging = false);
     }
 }
 
