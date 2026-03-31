@@ -64,7 +64,11 @@ class Enemy extends BaseObject {
         this.baseScaleX = this.sprite.scaleX;
         this.baseScaleY = this.sprite.scaleY;
 
-        this.sprite.setTintFill(cfg.color);
+        try {
+            this.sprite.setTintFill(cfg.color);
+        } catch (e) {
+            console.log("setTintFill failed", e);
+        }
         if (this.sprite.postFX) {
             this.sprite.postFX.addGlow(cfg.color, 4, 0, false, 0.1, 10);
         }

@@ -311,14 +311,52 @@ class Shockwave extends Ability {
 }
 
 class Thorns extends Ability {
-    constructor(s, p) { super(s, p, 'thorns', 'Deals damage to enemies that touch the player'); }
+    constructor(s, p) {
+        super(s, p, 'thorns', 'Deals damage to enemies that touch the player');
+        this.angle = 0;
+        if (s) {
+            this.g = s.add.graphics().setDepth(15);
+            this.gfx.push(this.g);
+        }
+    }
     update(delta) {
-        // Passive: enemies touching player get hurt — checked in GameScene
+        if (!this.g) return;
+        this.angle += 0.05 * (delta / 16); // Rotate based on time
+        this.g.clear();
+        const px = this.player.x, py = this.player.y;
+        
+        // Draw 3 rotating spikes around the player
+        for (let i = 0; i < 3; i++) {
+            const a = this.angle + (i * Math.PI * 2 / 3);
+            const dist = 32;
+            const sx = px + Math.cos(a) * dist;
+            const sy = py + Math.sin(a) * dist;
+            
+            // Draw a small triangle/spike
+            this.g.fillStyle(0x44ff66, 0.6);
+            this.g.beginPath();
+            this.g.moveTo(sx + Math.cos(a) * 8, sy + Math.sin(a) * 8);
+            this.g.lineTo(sx + Math.cos(a + 2) * 5, sy + Math.sin(a + 2) * 5);
+            this.g.lineTo(sx + Math.cos(a - 2) * 5, sy + Math.sin(a - 2) * 5);
+            this.g.fillPath();
+        }
     }
     onEnemyTouch(e) {
         const dmg = 15 * this.player.damageMult;
         e.takeDamage(dmg, this.player.x, this.player.y);
         GameUtils.floatText(this.scene, e.x, e.y - 20, Math.round(dmg), '#ff4466');
+        
+        // Visual 'stab' effect at hit point
+        const g = this.scene.add.graphics().setDepth(25);
+        g.lineStyle(2, 0x44ff66, 1.0);
+        g.strokeCircle(e.x, e.y, 10);
+        this.scene.tweens.add({
+            targets: g,
+            alpha: 0,
+            scale: 2.0,
+            duration: 150,
+            onComplete: () => g.destroy()
+        });
     }
 }
 

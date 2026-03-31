@@ -70,9 +70,13 @@ class Player extends BaseObject {
 
     applyUpgrade(upg) {
         const e = upg.effect;
-        if (!e) return; // Safety check
         if (e.mode === 'add') {
             this[e.stat] = (this[e.stat] || 0) + e.value;
+            // If we just increased max HP, also increase current HP and update UI
+            if (e.stat === 'maxHp') {
+                this.hp += e.value;
+                this.scene.events.emit('player_hp_changed', this.hp, this.maxHp);
+            }
         } else {
             this[e.stat] = (this[e.stat] || 1) * e.value;
         }
