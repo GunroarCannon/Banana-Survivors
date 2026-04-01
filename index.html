@@ -92,14 +92,8 @@
             background: linear-gradient(90deg, #ffd700, #ffd700);
             /* #ff6600);  */
             border-radius: 4px;
-            animation: load 1.2s ease forwards;
         }
 
-        @keyframes load {
-            to {
-                width: 100%;
-            }
-        }
     </style>
 </head>
 
@@ -111,7 +105,7 @@
             <p>Generating wasteland…</p>
             <p style="font-size:12px">Please Wait...</p>
             <div class="loader-bar">
-                <div class="loader-fill"></div>
+                <div class="loader-fill" id="loader-fill"></div>
             </div>
         </div>
     </div>
@@ -156,12 +150,9 @@
                 },
             });
 
-            game.events.once('ready', () => {
-                setTimeout(() => {
-                    loading.style.opacity = '0';
-                    setTimeout(() => loading.remove(), 500);
-                }, 800);
-            });
+            // Let BootScene control when the loading screen goes away
+            // game.events.once('ready', () => { ... }) has been moved to BootScene.create()
+
 
             // Register Service Worker for PWA
             if ('serviceWorker' in navigator) {

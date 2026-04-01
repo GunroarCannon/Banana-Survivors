@@ -72,8 +72,12 @@ class BootScene extends Phaser.Scene {
                 this.load.audio('music_' + i, "./" + m)
             });
         }
-        // Load all SFX from CONFIG.SFX (all keys → sfx_KEY)
         if (CONFIG.SFX) {
+            this.load.on('progress', (value) => {
+                const loader = document.getElementById('loader-fill');
+                if (loader) loader.style.width = (value * 100) + '%';
+            });
+
             Object.entries(CONFIG.SFX).forEach(([k, v]) => {
                 console.log("loading sfx ", k, v);
                 this.sound.unlock();
@@ -157,6 +161,13 @@ class BootScene extends Phaser.Scene {
             window.lootLocker.startSession();
         }
         else console.log("NOT STARTING LOOTLOCKER SESSION")
+
+        // Hide HTML loading screen
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.style.opacity = '0';
+            setTimeout(() => loading.remove(), 500);
+        }
 
         this.scene.start('MainMenu');
     }
@@ -571,24 +582,36 @@ class LeaderboardScene extends Phaser.Scene {
     }
 
     async _processPendingScore() {
-        const pending = localStorage.getItem('banana_pending_score');
-        if (pending) {
-            try {
-                const run = JSON.parse(pending);
-                let playerName = localStorage.getItem('player_name') || 'Anonymous';
-                await window.lootLocker.setPlayerName(playerName);
-                const metadata = {
-                    class: run.className,
-                    time: run.survivedTime,
-                    lvl: run.level
-                };
-                console.log("Found crashed pending score, submitting...");
-                await window.lootLocker.submitScore(run.kills, metadata);
-            } catch (e) {
-                console.error("Failed to process pending score", e);
-            } finally {
+        let pending = localStorage.getItem('banana_pending_score');
+        if (!pending) return;
+        try {
+            let pendingList = JSON.parse(pending);
+            if (!Array.isArray(pendingList)) pendingList = [{ runId: 'legacy', data: pendingList }];
+            if (pendingList.length === 0) return;
+
+            let playerName = localStorage.getItem('player_name') || 'Anonymous';
+            await window.lootLocker.setPlayerName(playerName);
+
+            const remaining = [];
+            for (const p of pendingList) {
+                try {
+                    const run = p.data;
+                    const metadata = { class: run.className, time: run.survivedTime, lvl: run.level };
+                    console.log("Found crashed pending score, submitting...");
+                    await window.lootLocker.submitScore(run.kills, metadata);
+                } catch (e) {
+                    console.error("Failed to process one pending score", e);
+                    remaining.push(p);
+                }
+            }
+
+            if (remaining.length > 0) {
+                localStorage.setItem('banana_pending_score', JSON.stringify(remaining));
+            } else {
                 localStorage.removeItem('banana_pending_score');
             }
+        } catch (e) {
+            console.error("Failed to parse pending score array", e);
         }
     }
 
@@ -765,6 +788,7 @@ class GameScene extends Phaser.Scene {
         this._lastSyncedPulp = 0;
         this._lastStatSyncTime = 0;
         this._lastScoreSyncTime = 0;
+        this.runId = Date.now().toString();
 
         // Increment totalRuns at start of game
         try {
@@ -1193,8 +1217,19 @@ class GameScene extends Phaser.Scene {
         console.log("dead player")
         // Leaderboard Submission
         this._handleScoreSubmission(runData);
-        // Clear pending score as we legitimately died and submitted
-        localStorage.removeItem('banana_pending_score');
+
+        // Clear only this run's pending score from the array
+        try {
+            let pendingList = JSON.parse(localStorage.getItem('banana_pending_score') || '[]');
+            if (Array.isArray(pendingList)) {
+                pendingList = pendingList.filter(p => p.runId !== this.runId);
+                if (pendingList.length > 0) {
+                    localStorage.setItem('banana_pending_score', JSON.stringify(pendingList));
+                } else {
+                    localStorage.removeItem('banana_pending_score');
+                }
+            }
+        } catch(e) {}
 
         // Transition to GameOver after a short delay
         this.time.delayedCall(1500, () => {
@@ -1206,19 +1241,19 @@ class GameScene extends Phaser.Scene {
     _syncProgressiveStats() {
         try {
             const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
-            
+
             const newKills = this.totalKills - this._lastSyncedKills;
             const newTime = this.survivedSec - this._lastSyncedTime;
             const newPulp = this.totalPulpCollected - this._lastSyncedPulp;
-            
+
             stats.totalKills += newKills;
             stats.totalTime = (stats.totalTime || 0) + newTime;
             stats.totalPulp = (stats.totalPulp || 0) + newPulp;
             if (this.totalKills > stats.maxKills) stats.maxKills = this.totalKills;
             if (this.level > stats.maxLevel) stats.maxLevel = this.level;
-            
+
             localStorage.setItem('banana_stats', JSON.stringify(stats));
-            
+
             this._lastSyncedKills = this.totalKills;
             this._lastSyncedTime = this.survivedSec;
             this._lastSyncedPulp = this.totalPulpCollected;
@@ -1236,8 +1271,16 @@ class GameScene extends Phaser.Scene {
                 survivedTime: Math.floor(this.survivedSec / 60) + ':' + String(Math.floor(this.survivedSec % 60)).padStart(2, '0'),
                 time: new Date().toLocaleDateString(),
             };
-            localStorage.setItem('banana_pending_score', JSON.stringify(runData));
-        } catch(e) { }
+            
+            let pendingList = JSON.parse(localStorage.getItem('banana_pending_score') || '[]');
+            if (!Array.isArray(pendingList)) pendingList = [];
+            
+            const idx = pendingList.findIndex(p => p.runId === this.runId);
+            if (idx >= 0) pendingList[idx].data = runData;
+            else pendingList.push({ runId: this.runId, data: runData });
+            
+            localStorage.setItem('banana_pending_score', JSON.stringify(pendingList));
+        } catch (e) { }
     }
 
     _checkBestRun(run) {
