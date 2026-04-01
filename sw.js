@@ -1,4 +1,4 @@
-const CACHE_NAME = 'banana-survivors-v1.02';
+const CACHE_NAME = 'banana-survivors-v1.011';
 const ASSETS = [
   './',
   './index.html',
@@ -20,11 +20,16 @@ const ASSETS = [
   //'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js',
   //'https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap'
 ];
-
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Force update
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Use map to catch individual errors
+      return Promise.allSettled(
+        ASSETS.map(asset =>
+          cache.add(asset).catch(err => console.warn(`Failed to cache: ${asset}`, err))
+        )
+      );
     })
   );
 });
@@ -40,10 +45,15 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      // Return cache OR try network, and catch errors if network is down
+      return response || fetch(event.request).catch((err) => {
+        console.log("Network failed and not in cache");
+        return err
+      });
     })
   );
 });
+
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(

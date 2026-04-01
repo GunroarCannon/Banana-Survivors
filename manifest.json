@@ -15,5 +15,21 @@
       "sizes": "1024x1024",
       "type": "image/png"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/screenshot_wide.png",
+      "sizes": "1365x623",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Banana Survivors Desktop Gameplay"
+    },
+    {
+      "src": "assets/screenshot.png",
+      "sizes": "493x548",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Banana Survivors Mobile Gameplay"
+    }
   ]
 }

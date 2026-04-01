@@ -202,14 +202,14 @@ const CLASS_DEFS = {
         desc: 'Summons helpers and manipulates the battlefield from afar.',
         color: 0x44aaff, speed: 180, hp: 90, animType: 'bounce', source: 'overseer',
         abilities: ['seed_spitter', 'spore_cloud', 'vine_grasp', 'fruit_bat_swarm', 'root_shield'],
-        unlockCond: { type: 'maxLevel', value: 11, label: 'Reach Level 11' }
+        unlockCond: { type: 'maxLevel', value: 5, label: 'Reach Level 5' }
     },
     grave_ripener: {
         name: 'Grave Ripener',
         desc: 'Harnesses the decay of fallen enemies to power dark machinations.',
         color: 0xaa44ff, speed: 170, hp: 120, animType: 'rock', source: 'grave_ripener',
         abilities: ['bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast'],
-        unlockCond: { type: 'totalRuns', value: 10, label: 'Play 10 Times' }
+        unlockCond: { type: 'totalRuns', value: 3, label: 'Play 3 Times' }
     },
     slicer: {
         name: 'Slicer',
@@ -223,6 +223,6 @@ const CLASS_DEFS = {
         desc: 'Unstoppable juggernaut with heavy crowd control skills.',
         color: 0xaaaaaa, speed: 150, hp: 200, animType: 'rock', source: 'iron_husk',
         abilities: ['shield_bash', 'ground_pound', 'unstoppable_charge', 'iron_rind', 'gravity_well'],
-        unlockCond: { type: 'totalKills', value: 4000, label: '4000 Total Kills' }
+        unlockCond: { type: 'totalKills', value: 1000, label: '1000 Total Kills' }
     }
 };

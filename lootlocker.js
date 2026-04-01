@@ -86,7 +86,7 @@ class LootLockerService {
         const name = localStorage.getItem('player_name') || 'Anonymous';
 
         const payload = {
-            member_id: localStorage.getItem('player_name') || 'Anonymous';,
+            member_id: name,
             score: score,
             metadata: JSON.stringify(metadata)
         };
@@ -151,7 +151,7 @@ class LootLockerService {
         } catch (e) {
             this.isOnline = false;
             console.error("Failed to get scores", e);
-            return [];
+            return null;
         }
     }
 
@@ -174,21 +174,23 @@ class LootLockerService {
         for (const item of queue) {
             try {
                 const payload = {
-                    member_id: itemname,
+                    member_id: localStorage.getItem('player_name') || 'Anonymous',
                     score: item.score,
                     metadata: JSON.stringify(item.metadata)
                 };
-                console.log(item);
+                console.log(payload);
                 const r = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                     method: 'POST',
                     headers: {
                         'x-session-token': this.sessionToken,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(item)
+                    body: JSON.stringify(payload)
                 });
-                if (!r.ok) throw new Error();
+
+                if (!r.ok) throw new Error(); else console.log("success doing that ", r);
             } catch {
+                console.log("error doing that ")
                 remaining.push(item);
             }
         }

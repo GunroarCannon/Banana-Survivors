@@ -668,7 +668,7 @@ class LeaderboardScene extends Phaser.Scene {
             loading.destroy();
 
             if (!response.items || response.items.length === 0) {
-                const noScores = this.add.text(W / 2, H / 2, 'NO SCORES YET', {
+                const noScores = this.add.text(W / 2, H / 2, !response.items && 'You are offline...' || 'NO SCORES YET', {
                     fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#666'
                 }).setOrigin(0.5);
                 this.listItems.push(noScores);
