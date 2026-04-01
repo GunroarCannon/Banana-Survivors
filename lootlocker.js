@@ -86,7 +86,7 @@ class LootLockerService {
         const name = localStorage.getItem('player_name') || 'Anonymous';
 
         const payload = {
-            member_id: name,
+            member_id: localStorage.getItem('player_name') || 'Anonymous';,
             score: score,
             metadata: JSON.stringify(metadata)
         };
@@ -173,6 +173,11 @@ class LootLockerService {
         const remaining = [];
         for (const item of queue) {
             try {
+                const payload = {
+                    member_id: itemname,
+                    score: item.score,
+                    metadata: JSON.stringify(item.metadata)
+                };
                 console.log(item);
                 const r = await fetch(`https://api.lootlocker.io/game/leaderboards/${this.leaderboardKey}/submit`, {
                     method: 'POST',

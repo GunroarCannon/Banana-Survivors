@@ -556,6 +556,41 @@ class MainMenuScene extends Phaser.Scene {
         try { return JSON.parse(localStorage.getItem('banana_best')); }
         catch { return null; }
     }
+
+    async _processPendingScore() {
+        let pending = localStorage.getItem('banana_pending_score');
+        if (!pending) return;
+        try {
+            let pendingList = JSON.parse(pending);
+            if (!Array.isArray(pendingList)) pendingList = [{ runId: 'legacy', data: pendingList }];
+            if (pendingList.length === 0) return;
+
+            let playerName = localStorage.getItem('player_name') || 'Anonymous';
+            await window.lootLocker.setPlayerName(playerName);
+
+            const remaining = [];
+            for (const p of pendingList) {
+                try {
+                    const run = p.data;
+                    const metadata = { class: run.className, time: run.survivedTime, lvl: run.level };
+                    console.log("Found crashed pending score, submitting...");
+                    await window.lootLocker.submitScore(run.kills, metadata);
+                } catch (e) {
+                    console.error("Failed to process one pending score", e);
+                    remaining.push(p);
+                }
+            }
+
+            if (remaining.length > 0) {
+                localStorage.setItem('banana_pending_score', JSON.stringify(remaining));
+            } else {
+                localStorage.removeItem('banana_pending_score');
+            }
+        } catch (e) {
+            console.error("Failed to parse pending score array", e);
+        }
+    }
+
 }
 
 // ============================================================
@@ -1229,7 +1264,7 @@ class GameScene extends Phaser.Scene {
                     localStorage.removeItem('banana_pending_score');
                 }
             }
-        } catch(e) {}
+        } catch (e) { }
 
         // Transition to GameOver after a short delay
         this.time.delayedCall(1500, () => {
@@ -1271,14 +1306,14 @@ class GameScene extends Phaser.Scene {
                 survivedTime: Math.floor(this.survivedSec / 60) + ':' + String(Math.floor(this.survivedSec % 60)).padStart(2, '0'),
                 time: new Date().toLocaleDateString(),
             };
-            
+
             let pendingList = JSON.parse(localStorage.getItem('banana_pending_score') || '[]');
             if (!Array.isArray(pendingList)) pendingList = [];
-            
+
             const idx = pendingList.findIndex(p => p.runId === this.runId);
             if (idx >= 0) pendingList[idx].data = runData;
             else pendingList.push({ runId: this.runId, data: runData });
-            
+
             localStorage.setItem('banana_pending_score', JSON.stringify(pendingList));
         } catch (e) { }
     }
