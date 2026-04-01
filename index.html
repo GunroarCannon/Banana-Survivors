@@ -9,10 +9,11 @@
     <!-- <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap"
         rel="stylesheet"> -->
-    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="assets/icon.png">
+    <link rel="icon" type="image/png" href="assets/icon.png">
     <meta name="theme-color" content="#c5ab15">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         *,
@@ -93,7 +94,6 @@
             /* #ff6600);  */
             border-radius: 4px;
         }
-
     </style>
 </head>
 
@@ -154,24 +154,15 @@
             // game.events.once('ready', () => { ... }) has been moved to BootScene.create()
 
 
-            // Register Service Worker for PWA
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').then(reg => {
-                    reg.addEventListener('updatefound', () => {
-                        const newWorker = reg.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // This is where you tell the user "New version available!"
-                                if (confirm("New update available! Reload now?")) {
-                                    window.location.reload();
-                                }
-                            }
-                        });
-                    });
-                });
-            }
 
         });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then((reg) => console.log('SW registered:', reg.scope))
+                .catch((err) => console.warn('SW registration failed:', err));
+        }
     </script>
 </body>
 

@@ -137,6 +137,23 @@ class Player extends BaseObject {
 
     takeDamage(amount) {
         if (this.invincible || this.dead) return;
+
+        // Give defensive abilities a chance to intercept
+        let blocked = false;
+        for (const a of this.abilities) {
+            if (a.onHit && a.alive !== false) {
+                a.onHit();
+                blocked = true;
+            }
+        }
+
+        if (blocked) {
+            this.invincible = true;
+            this.iframeTimer = CONFIG.PLAYER_IFRAMES_MS * 0.5;
+            GameUtils.floatText(this.scene, this.x, this.y - 30, 'SHIELDED!', '#88aa33');
+            return;
+        }
+
         this.hp -= amount;
         this.invincible = true;
         this.iframeTimer = CONFIG.PLAYER_IFRAMES_MS;

@@ -445,14 +445,18 @@ class Enemy extends BaseObject {
         if (this._isColliding) spd *= 0.3;
 
         // If too far, seek. If close, circle.
-        if (dist > 250) {
+        if (dist > 450) {
             this._moveToward(tx, ty, delta);
         } else {
             const orbitSpd = 0.002 * delta;
             const newAng = ang + orbitSpd;
-            // Slightly pull towards target while orbiting
+
+            // Oscillating radius
+            this._circleTimer = (this._circleTimer || 0) + delta;
+            const wave = Math.sin(this._circleTimer * 0.0008);
+            const targetR = ((wave + 1) / 2) * 220; // Oscillates from 0 to 220
+
             const pull = 0.1;
-            const targetR = 150;
             const currentR = dist;
             const rDelta = (targetR - currentR) * pull;
 
@@ -633,6 +637,11 @@ class WaveSpawner {
 
         for (let i = 0; i < count; i++) {
             const pos = this._spawnPos(pattern, i, count);
+
+            // Jitter to prevent excessive clumping
+            pos.x += Phaser.Math.Between(-90, 90);
+            pos.y += Phaser.Math.Between(-90, 90);
+
             const key = Phaser.Math.RND.pick(keys);
             const e = new Enemy(this.scene, pos.x, pos.y, key, this.statMult);
 

@@ -46,12 +46,12 @@ async function testLootLockerUpload() {
 
     console.log(`Submitting score: ${testScore} for player: ${playerName} with metadata:`, testMetadata);
     
-    try {
-        const result = await window.lootLocker.submitScore(testScore, testMetadata);
-        if (result && result.queued) {
-            console.warn("⚠️ Score queued (offline mode). The service thinks it's offline.");
-            console.log("Service Online State:", window.lootLocker.isOnline);
-        } else if (result) {
+        try {
+            const result = await window.lootLocker.submitScore(testScore, testMetadata);
+            if (result && result.queued) {
+                console.warn("⚠️ Score queued (offline mode). The service thinks it's offline.");
+                console.log("Service Online State:", window.lootLocker.isOnline);
+            } else if (result) {
             console.log("✅ Score uploaded successfully!", result);
         } else {
             console.error("❌ Submission returned no result.");
