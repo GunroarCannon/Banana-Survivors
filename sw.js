@@ -1,10 +1,12 @@
-const CACHE_NAME = 'banana-survivors-v1.011';
+const CACHE_NAME = 'banana-survivors-v1.012';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './assets/icon.png',
   './assets/banana.png',
+  './assets/screenshot_wide.png',
+  './assets/screenshot.png',
   './scene.fx.js',
   './noise.js',
   './config.js',
@@ -16,9 +18,6 @@ const ASSETS = [
   './scenes.js',
   './phaser.min.js',
   './google_font.css',
-
-  //'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js',
-  //'https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap'
 ];
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force update
