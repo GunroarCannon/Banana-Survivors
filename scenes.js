@@ -493,6 +493,9 @@ class MainMenuScene extends Phaser.Scene {
             this.time.delayedCall(1000, () => this._promptNameUpdate(nameLabel));
         }
 
+        // Process pending score from crash if it exists
+        this._processPendingScore();
+
         // Buttons
         const startY = H * 0.55;
         const spacing = 70;
@@ -565,6 +568,28 @@ class LeaderboardScene extends Phaser.Scene {
         });
 
         this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
+    }
+
+    async _processPendingScore() {
+        const pending = localStorage.getItem('banana_pending_score');
+        if (pending) {
+            try {
+                const run = JSON.parse(pending);
+                let playerName = localStorage.getItem('player_name') || 'Anonymous';
+                await window.lootLocker.setPlayerName(playerName);
+                const metadata = {
+                    class: run.className,
+                    time: run.survivedTime,
+                    lvl: run.level
+                };
+                console.log("Found crashed pending score, submitting...");
+                await window.lootLocker.submitScore(run.kills, metadata);
+            } catch (e) {
+                console.error("Failed to process pending score", e);
+            } finally {
+                localStorage.removeItem('banana_pending_score');
+            }
+        }
     }
 
     async _fetchScores() {
@@ -733,6 +758,20 @@ class GameScene extends Phaser.Scene {
         this.level = 1;
         this.xpNeeded = CONFIG.PULP_PER_LEVEL[1] || 10;
         this.levelUpPending = false;
+
+        // Progressive stat tracking
+        this._lastSyncedKills = 0;
+        this._lastSyncedTime = 0;
+        this._lastSyncedPulp = 0;
+        this._lastStatSyncTime = 0;
+        this._lastScoreSyncTime = 0;
+
+        // Increment totalRuns at start of game
+        try {
+            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
+            stats.totalRuns++;
+            localStorage.setItem('banana_stats', JSON.stringify(stats));
+        } catch (e) { }
 
         // Player
         this.player = new Player(this, this.worldW / 2, this.worldH / 2, this.classKey);
@@ -910,6 +949,16 @@ class GameScene extends Phaser.Scene {
 
         this.survivedSec += delta / 1000;
         this.ui.updateTimer(this.survivedSec);
+
+        // Periodic syncing
+        if (time - this._lastStatSyncTime > 2000) {
+            this._syncProgressiveStats();
+            this._lastStatSyncTime = time;
+        }
+        if (time - this._lastScoreSyncTime > 10000) {
+            this._syncPendingScore();
+            this._lastScoreSyncTime = time;
+        }
 
         // In update():
         this.fx.update(time, delta);
@@ -1135,8 +1184,8 @@ class GameScene extends Phaser.Scene {
             time: new Date().toLocaleDateString(),
         };
 
-        // Update persistent stats
-        this._updateGlobalStats(runData);
+        // Update persistent stats final time
+        this._syncProgressiveStats();
 
         // Handle Best Run
         this._checkBestRun(runData);
@@ -1144,6 +1193,8 @@ class GameScene extends Phaser.Scene {
         console.log("dead player")
         // Leaderboard Submission
         this._handleScoreSubmission(runData);
+        // Clear pending score as we legitimately died and submitted
+        localStorage.removeItem('banana_pending_score');
 
         // Transition to GameOver after a short delay
         this.time.delayedCall(1500, () => {
@@ -1152,17 +1203,41 @@ class GameScene extends Phaser.Scene {
         });
     }
 
-    _updateGlobalStats(run) {
+    _syncProgressiveStats() {
         try {
             const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
-            stats.totalRuns++;
-            stats.totalKills += run.kills;
-            stats.totalTime = (stats.totalTime || 0) + run.survivedSec;
-            stats.totalPulp = (stats.totalPulp || 0) + (this.totalPulpCollected || 0);
-            if (run.kills > stats.maxKills) stats.maxKills = run.kills;
-            if (run.level > stats.maxLevel) stats.maxLevel = run.level;
+            
+            const newKills = this.totalKills - this._lastSyncedKills;
+            const newTime = this.survivedSec - this._lastSyncedTime;
+            const newPulp = this.totalPulpCollected - this._lastSyncedPulp;
+            
+            stats.totalKills += newKills;
+            stats.totalTime = (stats.totalTime || 0) + newTime;
+            stats.totalPulp = (stats.totalPulp || 0) + newPulp;
+            if (this.totalKills > stats.maxKills) stats.maxKills = this.totalKills;
+            if (this.level > stats.maxLevel) stats.maxLevel = this.level;
+            
             localStorage.setItem('banana_stats', JSON.stringify(stats));
+            
+            this._lastSyncedKills = this.totalKills;
+            this._lastSyncedTime = this.survivedSec;
+            this._lastSyncedPulp = this.totalPulpCollected;
         } catch (e) { }
+    }
+
+    _syncPendingScore() {
+        try {
+            const runData = {
+                classKey: this.classKey,
+                className: CLASS_DEFS[this.classKey]?.name,
+                level: this.level,
+                kills: this.totalKills,
+                survivedSec: this.survivedSec,
+                survivedTime: Math.floor(this.survivedSec / 60) + ':' + String(Math.floor(this.survivedSec % 60)).padStart(2, '0'),
+                time: new Date().toLocaleDateString(),
+            };
+            localStorage.setItem('banana_pending_score', JSON.stringify(runData));
+        } catch(e) { }
     }
 
     _checkBestRun(run) {
