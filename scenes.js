@@ -13,7 +13,7 @@ class BootScene extends Phaser.Scene {
         this.load.image('trophy', 'assets/icons/lorc/trophy.png');
         this.load.image('ghost', 'assets/icons/lorc/ghost.png');
         this.load.image('star', 'assets/icons/delapouite/round-star.png');
-        this.load.image('potion', 'assets/icons/lorc/potion.png');
+        this.load.image('potion', 'assets/icons/lorc/potion-ball.png');
         this.load.image('banana', 'assets/banana.png')
 
 
