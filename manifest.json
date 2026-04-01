@@ -1,0 +1,34 @@
+{
+  "name": "Banana Survivors",
+  "short_name": "Banana Survivors",
+  "description": "Fight off hordes of enemies in this fast-paced banana-themed roguelike survivor game.",
+  "theme_color": "#c5ab15",
+  "background_color": "#1a1a1a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "id": "?pwa=1",
+  "scope": "./",
+  "start_url": "./",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "gameplay/image.png",
+      "sizes": "1312x640",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "gameplay/gameplay.png",
+      "sizes": "349x601",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}
