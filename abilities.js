@@ -333,16 +333,16 @@ class Thorns extends Ability {
     }
     update(delta) {
         if (!this.g) return;
-        this.angle += this.rotDir * this.rotSpeed * (delta / 16); 
+        this.angle += this.rotDir * this.rotSpeed * (delta / 16);
         this.g.clear();
         const px = this.player.x, py = this.player.y;
-        
+
         for (let i = 0; i < 3; i++) {
             const a = this.angle + (i * Math.PI * 2 / 3);
             const dist = this.orbitRadius;
             const sx = px + Math.cos(a) * dist;
             const sy = py + Math.sin(a) * dist;
-            
+
             // Draw a small triangle/spike
             this.g.fillStyle(0x44ff66, 0.6);
             this.g.beginPath();
@@ -356,7 +356,7 @@ class Thorns extends Ability {
         const dmg = 15 * this.player.damageMult;
         e.takeDamage(dmg, this.player.x, this.player.y);
         GameUtils.floatText(this.scene, e.x, e.y - 20, Math.round(dmg), '#ff4466');
-        
+
         // Visual 'stab' effect at hit point
         const g = this.scene.add.graphics().setDepth(25);
         g.lineStyle(2, 0x44ff66, 1.0);
@@ -515,7 +515,7 @@ class FruitBatSwarm extends Ability {
             b.angle += 2.5 * (delta / 1000);
             b.flapPhase += 0.2; // Flap animation
             b.sprite.setScale((24 / b.sprite.width), (24 / b.sprite.height) * (0.8 + Math.sin(b.flapPhase) * 0.2));
-            
+
             b.sprite.setPosition(
                 this.player.x + Math.cos(b.angle) * 55,
                 this.player.y + Math.sin(b.angle) * 55
@@ -850,18 +850,18 @@ class GroundPound extends Ability {
 }
 
 class UnstoppableCharge extends Ability {
-    constructor(s, p) { 
-        super(s, p, 'unstoppable_charge', 'Charges in a direction, damaging enemies'); 
-        this.cooldown = 8000; 
+    constructor(s, p) {
+        super(s, p, 'unstoppable_charge', 'Charges in a direction, damaging enemies');
+        this.cooldown = 8000;
         this.trailTimer = 0;
     }
     update(delta) {
         this.timer += delta;
-        
+
         // Visuals during charge
         if (this._charging) {
             this.trailTimer += delta;
-            if (this.trailTimer > 60) { // Spawn ghost every 60ms
+            if (this.trailTimer > 250) { // Spawn ghost every 150ms
                 this.trailTimer = 0;
                 const ghost = this.scene.add.image(this.player.x, this.player.y, this.player.sprite.texture.key)
                     .setDepth(this.player.sprite.depth - 1)
@@ -881,7 +881,7 @@ class UnstoppableCharge extends Ability {
         this.player.speedMult += 2;
         this.player.invincible = true;
         this.player.iframeTimer = 2000;
-        
+
         // Toast and Impact
         GameUtils.floatText(this.scene, this.player.x, this.player.y - 45, 'UNSTOPPABLE CHARGE!', '#ffffff', 22);
         GameUtils.screenShake(this.scene, { intensity: 10, duration: 250 });

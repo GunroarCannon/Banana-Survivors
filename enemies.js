@@ -12,7 +12,7 @@ class Enemy extends BaseObject {
             //randomize the speed for more varied enemies
             speed: rawDef.speed * Phaser.Math.Between(0.5, 1.0),
 
-            damage: Math.round(rawDef.damage * statMult) * 1000,
+            damage: Math.round(rawDef.damage * statMult),
             faction: CONFIG.FACTIONS.ENEMY,
         };
         super(scene, x, y, def);
@@ -617,6 +617,7 @@ class WaveSpawner {
     }
 
     _spawnWave() {
+        if (this.scene.enemies.length >= CONFIG.MAX_ENEMIES) return;
         const keys = GameUtils.spawnAvailableEnemyKeys(this.diffLevel);
         if (!keys.length) return;
         const count = this.spawnCount;
@@ -660,6 +661,7 @@ class WaveSpawner {
     }
 
     _spawnElite() {
+        if (this.scene.enemies.length >= 40) return;
         const keys = GameUtils.eliteKeys(this.diffLevel);
         if (!keys.length) return;
         const pos = this._randomEdgePos();
@@ -678,6 +680,7 @@ class WaveSpawner {
     }
 
     _spawnBoss() {
+        if (this.scene.enemies.length >= 40) return;
         const keys = GameUtils.bossKeys(this.diffLevel);
         if (!keys.length) return;
         const pos = this._randomEdgePos();

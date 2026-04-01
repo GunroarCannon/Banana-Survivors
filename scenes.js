@@ -581,7 +581,7 @@ class LeaderboardScene extends Phaser.Scene {
         this.listItems.push(loading);
 
         try {
-            const response = { items: await window.lootLocker.getTopScores(10) };
+            const response = { items: await window.lootLocker.getTopScores(15) };
             loading.destroy();
 
             if (!response.items || response.items.length === 0) {
