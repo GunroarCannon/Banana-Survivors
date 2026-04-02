@@ -61,16 +61,16 @@ const CONFIG = {
     PULP_MAGNET_RADIUS: 80,    // auto-collect within this px
     PULP_MAGNET_SPEED: 320,
     // [0, 10, 35, 90, 220, 500, 1100, 2400, 5000, 10000, 18000, 30000]
-    PULP_PER_LEVEL: [10, 20, 40, 70, 110, 160, 220, 300, 400, 520,
-        660, 820, 1000, 1200, 1420, 1660, 1920, 2200, 2500, 2820,
-        3160, 3520, 3900, 4300, 4720, 5160, 5620, 6100, 6600, 7120],
+    PULP_PER_LEVEL: [8, 15, 30, 50, 80, 120, 160, 220, 300, 390,
+        490, 610, 750, 900, 1060, 1240, 1440, 1650, 1870, 2110,
+        2370, 2640, 2920, 3220, 3540, 3870, 4210, 4570, 4950, 5340],
     //  [0, 10, 35, 90, 220, 500, 1100, 2400, 5000, 10000, 18000, 30000], // XP thresholds
 
     // ── Difficulty Scaling ───────────────────────────────────
-    SCALE_INTERVAL_SEC: 30,    // difficulty tick every N seconds
+    SCALE_INTERVAL_SEC: 15,    // difficulty tick every N seconds
     ENEMY_STAT_MULT: 0.12,  // +12% per tick (multiplicative)
-    ELITE_INTERVAL_SEC: 45,
-    BOSS_MILESTONES_SEC: [300, 600, 900], // 5 / 10 / 15 min
+    ELITE_INTERVAL_SEC: 30,
+    BOSS_MILESTONES_SEC: [30, 90, 150, 180], // 30 sec / 1.5 / 2.5 / 3 min
 
     // ── Wave Spawner ─────────────────────────────────────────
     SPAWN_INTERVAL_MS: 1500,

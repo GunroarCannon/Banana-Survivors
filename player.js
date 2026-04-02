@@ -55,7 +55,10 @@ class Player extends BaseObject {
     }
 
     _initAbilities() {
-        const defs = this.classDef?.abilities || [];
+        let defs = this.classDef?.abilities || [];
+        if (this.classKey === 'generic_banana') {
+            defs = Phaser.Utils.Array.Shuffle([...defs]);
+        }
         for (const ablKey of defs.slice(0, 2)) { // start with first 2 (core)
             const cls = ABILITY_CLASSES[ablKey];
             if (cls) this.abilities.push(new cls(this.scene, this));
@@ -104,7 +107,11 @@ class Player extends BaseObject {
         this.maxHp = Math.max(this.maxHp, this.hp);
         // Regen
         if (this.hpRegen > 0) {
-            this.hp = Math.min(this.maxHp, this.hp + this.hpRegen * (delta / 1000));
+            this.regenTimer = (this.regenTimer || 0) + delta;
+            if (this.regenTimer >= 2000) {
+                this.regenTimer -= 2000;
+                this.heal(this.hpRegen * 2);
+            }
         }
 
         // iFrames
@@ -206,25 +213,36 @@ const CLASS_DEFS = {
         name: 'The Alchemist',
         desc: 'Master of volatile concoctions. Excels at elemental chain reactions.',
         color: 0x44ffaa, speed: 200, hp: 100, source: 'alchemist', animType: 'bounce',
+        level_up_heal: 10,
         abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild']
     },
     bruiser: {
         name: 'Bruiser',
         desc: 'Heavy hitter that thrives in close combat. High health, low speed.',
-        color: 0xff6644, speed: 160, hp: 160, animType: 'rock', source: 'bruiser',
+        color: 0xff6644, speed: 160, hp: 180, animType: 'rock', source: 'bruiser',
+        level_up_heal: 15,
         abilities: ['heavy_slap', 'spin_kick', 'shockwave', 'thorns', 'berserk_mush']
+    },
+    generic_banana: {
+        name: 'Banana Guy',
+        desc: 'Bland but reliable. Lower hp but heals faster and has access to all upgrades.',
+        color: 0xffeeaa, speed: 180, hp: 50, source: 'banana', animType: 'bounce',
+        level_up_heal: 30,
+        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'heavy_slap', 'spin_kick', 'shockwave', 'thorns', 'berserk_mush', 'seed_spitter', 'spore_cloud', 'vine_grasp', 'fruit_bat_swarm', 'root_shield', 'bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast', 'dash_slash', 'thrown_blade', 'blur', 'blade_fan', 'critical_rip', 'shield_bash', 'ground_pound', 'unstoppable_charge', 'iron_rind', 'gravity_well']
     },
     overseer: {
         name: 'Overseer',
         desc: 'Summons helpers and manipulates the battlefield from afar.',
         color: 0x44aaff, speed: 180, hp: 90, animType: 'bounce', source: 'overseer',
+        level_up_heal: 10,
         abilities: ['seed_spitter', 'spore_cloud', 'vine_grasp', 'fruit_bat_swarm', 'root_shield'],
         unlockCond: { type: 'maxLevel', value: 5, label: 'Reach Level 5' }
     },
     grave_ripener: {
         name: 'Grave Ripener',
         desc: 'Harnesses the decay of fallen enemies to power dark machinations.',
-        color: 0xaa44ff, speed: 170, hp: 120, animType: 'rock', source: 'grave_ripener',
+        color: 0xaa44ff, speed: 160, hp: 120, animType: 'rock', source: 'grave_ripener',
+        level_up_heal: 2,
         abilities: ['bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast'],
         unlockCond: { type: 'totalRuns', value: 3, label: 'Play 3 Times' }
     },
@@ -232,6 +250,7 @@ const CLASS_DEFS = {
         name: 'Slicer',
         desc: 'Incredibly fast and deadly, but extremely fragile.',
         color: 0xffee33, speed: 230, hp: 70, animType: 'wiggle', source: 'slicer',
+        level_up_heal: 5,
         abilities: ['dash_slash', 'thrown_blade', 'blur', 'blade_fan', 'critical_rip'],
         unlockCond: { type: 'maxKills', value: 400, label: '400 Kills in One Run' }
     },
@@ -239,6 +258,7 @@ const CLASS_DEFS = {
         name: 'Iron Husk',
         desc: 'Unstoppable juggernaut with heavy crowd control skills.',
         color: 0xaaaaaa, speed: 150, hp: 200, animType: 'rock', source: 'iron_husk',
+        level_up_heal: 10,
         abilities: ['shield_bash', 'ground_pound', 'unstoppable_charge', 'iron_rind', 'gravity_well'],
         unlockCond: { type: 'totalKills', value: 1000, label: '1000 Total Kills' }
     }

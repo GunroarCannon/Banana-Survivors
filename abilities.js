@@ -248,7 +248,7 @@ class MolecularRebuild extends Ability {
 class HeavySlap extends Ability {
     constructor(s, p) {
         super(s, p, 'heavy_slap', 'Slaps enemies in a cone in front of the player');
-        this.cooldown = 900;
+        this.cooldown = 800;
         this.angleOffset = (Math.random() - 0.5) * 0.4; // +/- offset
     }
     update(delta) {
@@ -263,7 +263,7 @@ class HeavySlap extends Ability {
             const diff = Phaser.Math.Angle.Wrap(eAng - ang);
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
             if (Math.abs(diff) < Math.PI * 0.45 && dist < 90 * this.player.aoeMult) {
-                const dmg = 28 * this.player.damageMult;
+                const dmg = 35 * this.player.damageMult;
                 e.takeDamage(dmg, this.player.x, this.player.y);
                 GameUtils.floatText(this.scene, e.x, e.y - 22, Math.round(dmg), '#ff9944');
             }
@@ -374,8 +374,8 @@ class Thorns extends Ability {
 class BerserkMush extends Ability {
     constructor(s, p) { super(s, p, 'berserk_mush', 'Increases attack speed when health is low'); }
     update(delta) {
-        if (this.player.hp / this.player.maxHp < 0.2) {
-            this.player.atkSpdMult = Math.max(this.player.atkSpdMult, 1.5);
+        if (this.player.hp / this.player.maxHp < 0.3) {
+            this.player.atkSpdMult = Math.max(this.player.atkSpdMult, 1.8);
         }
     }
 }
@@ -436,7 +436,7 @@ class SeedSpitter extends Ability {
                 if (t.fireTimer >= fireCd) {
                     t.fireTimer = 0;
                     const ang = Math.atan2(target.y - t.y, target.x - t.x);
-                    this.fireProjectile(ang, 280, 12, 0x44ff88, 5);
+                    this.fireProjectile(ang, 280, 15, 0x44ff88, 5);
                 }
             }
         }
@@ -595,7 +595,7 @@ class BoneShard extends Ability {
         }
         if (!target) return;
         const ang = Math.atan2(target.y - this.player.y, target.x - this.player.x);
-        this.fireProjectile(ang, 380, 18, 0xdddddd, 8, true, 1400);
+        this.fireProjectile(ang, 380, 13, 0xdddddd, 8, true, 1400);
     }
 }
 

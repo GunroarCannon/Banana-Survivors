@@ -13,7 +13,6 @@
     <link rel="apple-touch-icon" href="assets/icon.png">
     <link rel="icon" type="image/png" href="assets/icon.png">
     <meta name="theme-color" content="#c5ab15">
-    <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
@@ -96,6 +95,8 @@
             border-radius: 4px;
         }
     </style>
+<script>navigator.serviceWorker.register("service-worker.js")</script> 
+    <link rel="manifest" href="manifest.json" />
 </head>
 
 <body>
@@ -157,13 +158,6 @@
 
 
         });
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('Service Worker Registered'))
-                .catch(err => console.log('Service Worker Registration Failed', err));
-        }
     </script>
 </body>
 

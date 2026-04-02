@@ -1,34 +1,49 @@
 {
-  "name": "Banana Survivors",
-  "short_name": "Banana Survivors",
-  "description": "Fight off hordes of enemies in this fast-paced banana-themed roguelike survivor game.",
-  "theme_color": "#c5ab15",
-  "background_color": "#1a1a1a",
-  "display": "standalone",
-  "orientation": "portrait",
-  "id": "?pwa=1",
-  "scope": "./",
-  "start_url": "./",
-  "icons": [
+"name": "The name of your application",
+"short_name": "This name will show in your Windows taskbar, in the start menu, and Android homescreen",
+"start_url": "The URL that should be loaded when your application is opened",
+"display": "standalone",
+"description": "A description for your application",
+"lang": " The default language of your application",
+"dir": "auto",
+"theme_color": "#000000",
+"background_color": "#000000",
+"orientation": "any",
+"icons": [
     {
-      "src": "assets/icon.png",
-      "sizes": "1024x1024",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "gameplay/image.png",
-      "sizes": "1312x640",
-      "type": "image/png",
-      "form_factor": "wide"
+        "src": "https://www.pwabuilder.com/assets/icons/icon_512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable"
     },
     {
-      "src": "gameplay/gameplay.png",
-      "sizes": "349x601",
-      "type": "image/png",
-      "form_factor": "narrow"
+        "src": "https://www.pwabuilder.com/assets/icons/icon_192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
     }
-  ]
+],
+"screenshots": [
+    {
+        "src": "https://www.pwabuilder.com/assets/screenshots/screen1.png",
+        "sizes": "1630x918",
+        "type": "image/png",
+        "form-factor": "wide",
+        "description": "A screenshot of the home page"
+    }
+],
+"related_applications": [
+    {
+        "platform":"windows",
+        "url": " The URL to your app in that app store"
+    }
+],
+"prefer_related_applications": false,
+"shortcuts": [
+    {
+        "name":"The name you would like to be displayed for your shortcut",
+        "url":"The url you would like to open when the user chooses this shortcut. This must be a URL local to your PWA. For example: If my start_url is /, this URL must be something like /shortcut",
+        "description":"A description of the functionality of this shortcut"
+    }
+]
 }

@@ -345,6 +345,8 @@ class ClassSelectScene extends Phaser.Scene {
         const cardW = W - 50;
         const cardH = 100;
         const startY = 190;
+        
+        const scrollContainer = this.add.container(0, 0);
 
         classes.forEach(([key, def], i) => {
             const row = i;
@@ -380,30 +382,34 @@ class ClassSelectScene extends Phaser.Scene {
             if (locked) icon.setTint(0x444444);
 
             // Class name
-            this.add.text(cx - cardW / 2 + 96, cy - 28, locked ? '???' : def.name, {
+            const nameText = this.add.text(cx - cardW / 2 + 96, cy - 28, locked ? '???' : def.name, {
                 fontFamily: "'Fredoka One', sans-serif",
                 fontSize: '18px', fill: locked ? '#888' : '#2c3e50'
             });
 
             // Desc or Unlock Condition
             const descStr = locked ? `LOCKED: ${def.unlockCond.label}` : (def.desc.length > 70 ? def.desc.slice(0, 68) + '…' : def.desc);
-            this.add.text(cx - cardW / 2 + 96, cy - 2, descStr, {
+            const descText = this.add.text(cx - cardW / 2 + 96, cy - 2, descStr, {
                 fontFamily: "'Fredoka One', sans-serif",
                 fontSize: locked ? '13px' : '11px', fill: locked ? '#cc4444' : '#666',
                 wordWrap: { width: cardW - 120 }
             });
+            
+            scrollContainer.add([card, cardStroke, icon, nameText, descText]);
 
             if (!locked) {
                 // Core abilities
                 const coreAbils = def.abilities.slice(0, 3).join(' · ').replace(/_/g, ' ');
-                this.add.text(cx - cardW / 2 + 96, cy + 30, coreAbils, {
+                const coreAbilsText = this.add.text(cx - cardW / 2 + 96, cy + 30, coreAbils, {
                     fontFamily: "'Fredoka One', sans-serif",
                     fontSize: '10px', fill: '#888'
                 });
 
                 // Color stripe
-                this.add.rectangle(cx - cardW / 2 + 8, cy, 6, cardH - 16, def.color)
+                const colorStripe = this.add.rectangle(cx - cardW / 2 + 8, cy, 6, cardH - 16, def.color)
                     .setOrigin(0, 0.5).setX(cx - cardW / 2 + 8);
+                    
+                scrollContainer.add([coreAbilsText, colorStripe]);
             }
 
             if (!locked) {
@@ -419,9 +425,42 @@ class ClassSelectScene extends Phaser.Scene {
                     this.tweens.add({ targets: [card, cardStroke], scaleX: 1, scaleY: 1, duration: 80 });
                     this.tweens.add({ targets: [icon], scaleX: iconOGScaleX, scaleY: iconOGScaleY, duration: 80 });
                 });
-                card.on('pointerdown', () => this._selectClass(key));
+                
+                let startPtrY = 0;
+                card.on('pointerdown', (ptr) => { startPtrY = ptr.y; });
+                card.on('pointerup', (ptr) => {
+                    if (Math.abs(ptr.y - startPtrY) < 10) this._selectClass(key);
+                });
             }
         });
+        
+        const maxScrollY = Math.min(0, H - (startY + rows * (cardH + 14) + 120));
+        
+        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+            scrollContainer.y -= deltaY * 1.5;
+            if (scrollContainer.y > 0) scrollContainer.y = 0;
+            if (scrollContainer.y < maxScrollY) scrollContainer.y = maxScrollY;
+        });
+
+        let isDragging = false;
+        let lastDragY = 0;
+
+        this.input.on('pointerdown', (pointer) => {
+            isDragging = true;
+            lastDragY = pointer.y;
+        });
+
+        this.input.on('pointermove', (pointer) => {
+            if (!isDragging) return;
+            const deltaY = pointer.y - lastDragY;
+            scrollContainer.y += deltaY;
+            if (scrollContainer.y > 0) scrollContainer.y = 0;
+            if (scrollContainer.y < maxScrollY) scrollContainer.y = maxScrollY;
+            lastDragY = pointer.y;
+        });
+
+        this.input.on('pointerup', () => { isDragging = false; });
+        this.input.on('pointerupoutside', () => { isDragging = false; });
 
         this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
 
@@ -1151,6 +1190,10 @@ class GameScene extends Phaser.Scene {
         this.fx.levelUp(this.player.x, this.player.y);
         this.fx.flashScreen(0xffd700, 0.4, 400);
 
+        if (this.player.classDef && this.player.classDef.level_up_heal > 0) {
+            this.player.heal(this.player.classDef.level_up_heal);
+        }
+
 
         this.levelUpPending = true;
         this.level++;
@@ -1399,15 +1442,9 @@ class UpgradeManager {
             });
         }
 
-        // Remove recently picked (avoid repeats)
-        pool = pool.filter(u => !this.pickedIds.has(u.id));
-        if (pool.length < 3) { this.pickedIds.clear(); pool = [...UPGRADE_POOL]; }
-
-        console.log(pool)
-        // Shuffle and pick 3
+        // Shuffle and pick 3, unconditionally allowing duplicates
         Phaser.Utils.Array.Shuffle(pool);
         const picked = pool.slice(0, 3);
-        for (const p of picked) this.pickedIds.add(p.id);
         return picked;
     }
 }
