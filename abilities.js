@@ -528,7 +528,7 @@ class FruitBatSwarm extends Ability {
             if (e.dead) continue;
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
             if (d < 120) {
-                e.takeDamage(8 * this.player.damageMult, this.player.x, this.player.y);
+                e.takeDamage(8 * this.player.damageMult);
                 break;
             }
         }

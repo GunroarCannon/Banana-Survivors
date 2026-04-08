@@ -1,5 +1,11 @@
 # Implementation Plan - Banana Survivors Enhancements
 
+In an attempt to fix 
+```why does  PWA not show up on android, or am I missing something? 
+
+Also make sure bats dont repel enemies so player is not untuchable,. ALso stuff like ICe Behmeoth and the rest stilll do not show up. ALso add a spawning pattern every 30 seconds where monsters spawn in a wiide circle around the player (very wide radius, can vary, and then each monster just moves to the centre of that circle, when they reach the center or a certain very close distance to the player they behave like normal, make it so there is a type with varied type of monsters, and type of circle that only uses the same type f monster
+```
+
 Enhance enemy variety, improve UI feedback, and implement a progression system with class unlocks.
 
 ## Proposed Changes

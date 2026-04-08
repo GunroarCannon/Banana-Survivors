@@ -99,18 +99,40 @@ class Enemy extends BaseObject {
     update(delta, entities) {
         if (this.dead) return;
 
+        // --- Performance Optimizations ---
+        // 1. Offscreen Culling
+        const cam = this.scene.cameras.main;
+        const isOnScreen = cam.worldView.contains(this.x, this.y); // Simple check for culling
+        if (this.sprite) this.sprite.visible = isOnScreen;
+
+        // 2. Stochastic Update Skip (skip 75% for far enemies)
+        const player = this.scene.player;
+        const distSq = Phaser.Math.Distance.Squared(this.x, this.y, player.x, player.y);
+        const farThresholdSq = 750 * 750;
+        if (distSq > farThresholdSq && Math.random() < 0.75) return;
+        // ---------------------------------
+        this.ogTint = this.ogTint !== undefined ? this.ogTint : (this.sprite.tint || 0xffffff);
+
         // Stun
         if (this.stunTimer > 0) {
             this.vx = 0; this.vy = 0;
             this.stunTimer -= delta;
-            if (this.sprite.setTint)
+            if (this.sprite.setTint) {
                 this.sprite.setTint(0x8888ff);
+                this.isStunned = true
+            }
             this._applyWalkAnimation(delta);
             return;
         }
 
-        if (this.sprite.clearTint)
-            this.sprite.clearTint();
+        if (this.sprite.setTint) {
+            this.sprite.setTint(this.ogTint || 0xffffff)
+        }
+
+        this.isStunned = null;
+
+        // if (this.sprite.clearTint)
+        //     this.sprite.clearTint();
 
         // Ghost-target distraction
         if (this._ghostTimer > 0) {
@@ -599,6 +621,13 @@ class WaveSpawner {
             this.scene.events.emit('difficulty_up', this.diffLevel);
         }
 
+        // Wide circle spawn pattern
+        this.circleSpawnTimer = (this.circleSpawnTimer || 0) + delta;
+        if (this.circleSpawnTimer >= 30000) {
+            this.circleSpawnTimer = 0;
+            this._spawnWideCircleWave();
+        }
+
         // Elite spawn
         this.eliteTimer += delta;
         if (this.eliteTimer >= CONFIG.ELITE_INTERVAL_SEC * 1000) {
@@ -670,7 +699,6 @@ class WaveSpawner {
     }
 
     _spawnElite() {
-        if (this.scene.enemies.length >= 40) return;
         const keys = GameUtils.eliteKeys(this.diffLevel);
         if (!keys.length) return;
         const pos = this._randomEdgePos();
@@ -689,7 +717,6 @@ class WaveSpawner {
     }
 
     _spawnBoss() {
-        if (this.scene.enemies.length >= 40) return;
         const keys = GameUtils.bossKeys(this.diffLevel);
         if (!keys.length) return;
         const pos = this._randomEdgePos();
@@ -746,6 +773,31 @@ class WaveSpawner {
             { x: cam.scrollX + CONFIG.WIDTH + pad, y: Phaser.Math.Between(cam.scrollY - pad, cam.scrollY + CONFIG.HEIGHT + pad) },
         ];
         return Phaser.Math.RND.pick(sides);
+    }
+
+    _spawnWideCircleWave() {
+        const keys = GameUtils.spawnAvailableEnemyKeys(this.diffLevel);
+        if (!keys.length) return;
+        const count = 15 + Math.floor(this.diffLevel * 1.5);
+        const radius = Math.max(CONFIG.WIDTH, CONFIG.HEIGHT) + Phaser.Math.Between(200, 300);
+
+        const varied = Math.random() > 0.5;
+        const singleKey = Phaser.Math.RND.pick(keys);
+
+        const cx = this.scene.cameras.main.scrollX + CONFIG.WIDTH / 2;
+        const cy = this.scene.cameras.main.scrollY + CONFIG.HEIGHT / 2;
+
+        for (let i = 0; i < count; i++) {
+            const ang = (i / count) * Math.PI * 2;
+            const x = cx + Math.cos(ang) * radius;
+            const y = cy + Math.sin(ang) * radius;
+
+            const key = varied ? Phaser.Math.RND.pick(keys) : singleKey;
+            const e = new Enemy(this.scene, x, y, key, this.statMult);
+            // MoveType seek forces them to move towards the player (which is at the center usually)
+            e.moveType = 'seek';
+            this.scene.enemies.push(e);
+        }
     }
 }
 

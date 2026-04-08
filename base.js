@@ -26,7 +26,8 @@ class BaseObject {
 
     _buildSprite() {
         const s = this.scene;
-        const key = this.def.source || this.def.anim || this.def.key;
+        const key = this.def.source || this.def.icon || this.def.anim || this.def.key;
+        const col = this.def.color || null
 
         // Try texture; fall back to coloured rect
         if (key && s.textures.exists(key)) {
@@ -46,6 +47,10 @@ class BaseObject {
             // Draw simple face on top
             this.face = s.add.graphics().setDepth(11);
             this._drawFace();
+        }
+
+        if (this.sprite.setTint && col) {
+            this.sprite.setTint(col)
         }
     }
 

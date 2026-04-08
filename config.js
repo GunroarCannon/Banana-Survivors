@@ -9,6 +9,8 @@ const CONFIG = {
 
     MAX_ENEMIES: 60,
 
+    DEBUG: true,
+
     // ── Player ───────────────────────────────────────────────
     BASE_SPEED: 180,
 
@@ -176,15 +178,15 @@ const ENEMY_DEFS = {
         damage: 22,
         xp: 20,
         color: 0xe84040,
-        intensity: 3,
+        intensity: 2,
         ai: 'seek',
-        isElite: true,
-        animType: 'rock'
+        isElite: false,
+        animType: 'bounce'
     },
     eldritch_peel: {
         key: 'eldritch_peel',
         label: 'Eldritch Peel',
-        icon: 'ei_tentacles_skull',   // lorc/tentacles-skull — eldritch horror
+        source: 'ei_tentacles_skull',   // lorc/tentacles-skull — eldritch horror
         width: 70, height: 70,
         hp: 800,
         speed: 30,
@@ -221,7 +223,8 @@ const ENEMY_DEFS = {
     glacial_behemoth: {
         key: 'glacial_behemoth',
         label: 'Glacial Behemoth',
-        icon: 'ei_frozen_orb',        // lorc/frozen-orb — icy orb
+        source: 'rot_god',
+        idcon: 'ei_frozen_orb',        // lorc/frozen-orb — icy orb
         // ~5× player (42×42 → 210×210)
         width: 210, height: 210,
         hp: 1600,
@@ -239,7 +242,7 @@ const ENEMY_DEFS = {
     magma_lord: {
         key: 'magma_lord',
         label: 'Magma Lord',
-        icon: 'ei_volcano',           // lorc/volcano — eruption imagery
+        source: 'fungal_horror',           // lorc/volcano — eruption imagery
         // ~3.5× player (42×42 → 147×147)
         width: 147, height: 147,
         hp: 1000,
@@ -256,7 +259,7 @@ const ENEMY_DEFS = {
     wasp: {
         key: 'wasp',
         label: 'Vicious Wasp',
-        icon: 'ei_bee',
+        source: 'ei_bee',
         width: 26, height: 26,
         hp: 25,
         speed: 160,
@@ -285,7 +288,7 @@ const ENEMY_DEFS = {
     centipede: {
         key: 'centipede',
         label: 'Giant Centipede',
-        icon: 'ei_centipede',
+        icon: 'maggot',
         width: 105, height: 45,
         hp: 250,
         speed: 90,

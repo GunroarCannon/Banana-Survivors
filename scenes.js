@@ -345,7 +345,7 @@ class ClassSelectScene extends Phaser.Scene {
         const cardW = W - 50;
         const cardH = 100;
         const startY = 190;
-        
+
         const scrollContainer = this.add.container(0, 0);
 
         classes.forEach(([key, def], i) => {
@@ -394,7 +394,7 @@ class ClassSelectScene extends Phaser.Scene {
                 fontSize: locked ? '13px' : '11px', fill: locked ? '#cc4444' : '#666',
                 wordWrap: { width: cardW - 120 }
             });
-            
+
             scrollContainer.add([card, cardStroke, icon, nameText, descText]);
 
             if (!locked) {
@@ -408,7 +408,7 @@ class ClassSelectScene extends Phaser.Scene {
                 // Color stripe
                 const colorStripe = this.add.rectangle(cx - cardW / 2 + 8, cy, 6, cardH - 16, def.color)
                     .setOrigin(0, 0.5).setX(cx - cardW / 2 + 8);
-                    
+
                 scrollContainer.add([coreAbilsText, colorStripe]);
             }
 
@@ -425,7 +425,7 @@ class ClassSelectScene extends Phaser.Scene {
                     this.tweens.add({ targets: [card, cardStroke], scaleX: 1, scaleY: 1, duration: 80 });
                     this.tweens.add({ targets: [icon], scaleX: iconOGScaleX, scaleY: iconOGScaleY, duration: 80 });
                 });
-                
+
                 let startPtrY = 0;
                 card.on('pointerdown', (ptr) => { startPtrY = ptr.y; });
                 card.on('pointerup', (ptr) => {
@@ -433,9 +433,9 @@ class ClassSelectScene extends Phaser.Scene {
                 });
             }
         });
-        
+
         const maxScrollY = Math.min(0, H - (startY + rows * (cardH + 14) + 120));
-        
+
         this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
             scrollContainer.y -= deltaY * 1.5;
             if (scrollContainer.y > 0) scrollContainer.y = 0;
@@ -957,6 +957,17 @@ class GameScene extends Phaser.Scene {
                 }
             });
         }
+
+        // --- Debug Display ---
+        if (CONFIG.DEBUG) {
+            console.log("Set debug text")
+            this.debugText = this.add.text(70, 500, '', {
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                fill: '#00ff00',
+                backgroundColor: '#00000088'
+            }).setScrollFactor(0).setDepth(1000);
+        }
     }
 
     _showPauseOverlay() {
@@ -1044,6 +1055,17 @@ class GameScene extends Phaser.Scene {
 
     update(time, delta) {
         if (this.paused || this.player.dead) return;
+
+        // --- Debug Metrics ---
+        if (CONFIG.DEBUG && this.debugText) {
+            this.debugText.setText([
+                `FPS: ${Math.round(this.game.loop.actualFps)}`,
+                `Enemies: ${this.enemies.length}`,
+                `Gems: ${this.pulpGems.length}`,
+                `Pos: ${Math.round(this.player.x)}, ${Math.round(this.player.y)}`
+            ]);
+        }
+        // ---------------------
 
         this.survivedSec += delta / 1000;
         this.ui.updateTimer(this.survivedSec);

@@ -17,7 +17,9 @@
     - Badges: https://microsoft.github.io/win-student-devs/#/30DaysOfPWA/advanced-capabilities/07?id=application-badges
 */
 
-const v = "1.01"
+// Change this string anytime a new update is pushed.
+const v = "1.02"
+
 const h = "Service Worker: Hello world! I am a basic Service Worker, and I am here to help you get started with your PWA. Feel free to edit me and make me your own!"
 const HOSTNAME_WHITELIST = [
     self.location.hostname,
@@ -47,6 +49,38 @@ const getFixedUrl = (req) => {
     }
     return url.href
 }
+
+const PRECACHE_ASSETS = [
+    './',
+    './index.html',
+    './phaser.min.js',
+    './lootlocker.js',
+    './scene.fx.js',
+    './noise.js',
+    './config.js',
+    './base.js',
+    './abilities.js',
+    './player.js',
+    './enemies.js',
+    './ui.js',
+    './scenes.js',
+    './google_font.css',
+    './manifest.json',
+    './assets/banana.png',
+    './assets/icon.png'
+];
+
+/**
+ *  @Lifecycle Install
+ *  Pre-cache assets for offline use.
+ */
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open("pwa-cache")
+            .then(cache => cache.addAll(PRECACHE_ASSETS))
+            .then(() => self.skipWaiting())
+    );
+});
 
 /**
  *  @Lifecycle Activate
