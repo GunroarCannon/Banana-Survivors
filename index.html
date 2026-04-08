@@ -96,7 +96,43 @@
             border-radius: 4px;
         }
     </style>
-<script>navigator.serviceWorker.register("service-worker.js")</script> 
+    <script>
+        //navigator.serviceWorker.register("service-worker.js")
+        if (true) {
+            navigator.serviceWorker.register('service-worker.js').then(reg => {
+
+                // Handle a waiting worker already present on page load
+                if (reg.waiting) {
+                    askUserToUpdate(reg.waiting);
+                }
+
+                // Listen for a new worker being installed while the app is open
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            askUserToUpdate(newWorker);
+                        }
+                    });
+                });
+            });
+        }
+
+        function askUserToUpdate(worker) {
+            // This triggers the native browser "OK/Cancel" dialog
+            const userConfirmed = window.confirm("A new version of Banana Survivors is available. Update now?");
+
+            if (userConfirmed) {
+                // Send message to sw.js to take over
+                worker.postMessage({ action: 'skipWaiting' });
+            }
+        }
+
+        // Reload the page once the new service worker takes control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
+    </script>
     <link rel="manifest" href="manifest.json" />
 </head>
 

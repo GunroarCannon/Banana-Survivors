@@ -18,7 +18,7 @@
 */
 
 // Change this string anytime a new update is pushed.
-const v = "1.03"
+const v = "1.05"
 
 const h = "Service Worker: Hello world! I am a basic Service Worker, and I am here to help you get started with your PWA. Feel free to edit me and make me your own!"
 const HOSTNAME_WHITELIST = [
@@ -127,3 +127,9 @@ self.addEventListener('fetch', event => {
         )
     }
 })
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.action === 'skipWaiting') {
+        self.skipWaiting();
+    }
+});
