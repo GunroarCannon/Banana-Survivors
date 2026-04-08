@@ -44,7 +44,10 @@ class Enemy extends BaseObject {
                 }
             });
         }
+        // Batch offset for update throttling (spread load over 3 frames)
+        this._batchOffset = Math.floor(Math.random() * 3);
     }
+
 
     makeSpecial() {
         if (this.isElite || this.isBoss) return; // don't double-scale bosses
@@ -100,17 +103,28 @@ class Enemy extends BaseObject {
         if (this.dead) return;
 
         // --- Performance Optimizations ---
-        // 1. Offscreen Culling
+        // 1. Offscreen Culling & Logic Pause
         const cam = this.scene.cameras.main;
-        const isOnScreen = cam.worldView.contains(this.x, this.y); // Simple check for culling
+        const isOnScreen = cam.worldView.contains(this.x, this.y);
         if (this.sprite) this.sprite.visible = isOnScreen;
 
-        // 2. Stochastic Update Skip (skip 75% for far enemies)
+        // If offscreen, skip ALL AI logic. Just stay still or maintain velocity.
+        if (!isOnScreen) return;
+
+        // 2. Logic Batching
+        // Skip AI logic for 33% of enemies every frame if not very close to player
         const player = this.scene.player;
-        const distSq = Phaser.Math.Distance.Squared(this.x, this.y, player.x, player.y);
-        const farThresholdSq = 750 * 750;
-        if (distSq > farThresholdSq && Math.random() < 0.75) return;
+        const distSq = (this.x - player.x)**2 + (this.y - player.y)**2;
+        const nearThresholdSq = 250 * 250;
+        
+        // If not near player, skip 2 out of every 3 frames of AI logic
+        if (distSq > nearThresholdSq && (this.scene.game.loop.frame % 3 !== this._batchOffset)) {
+            // Still allow walk animation to tick so they don't look frozen if they are moving
+            this._applyWalkAnimation(delta);
+            return;
+        }
         // ---------------------------------
+
         this.ogTint = this.ogTint !== undefined ? this.ogTint : (this.sprite.tint || 0xffffff);
 
         // Stun
@@ -562,34 +576,45 @@ class Enemy extends BaseObject {
 //  Simple circle-vs-circle separation: enemies push each other apart
 //  so they don't stack on top of the player.
 // ============================================================
-function resolveEnemyCollisions(enemies) {
+function resolveEnemyCollisions(enemies, player) {
+    if (!enemies.length) return;
+    
+    // Only resolve collisions for enemies relatively near the player (e.g., within 500px)
+    // Most performance issues come from the crowded area around the player.
+    const activeRadiusSq = 500 * 500;
+
     for (let i = 0; i < enemies.length; i++) {
         const a = enemies[i];
-        if (a.dead) continue;
+        if (a.dead || !a.sprite.visible) continue;
+        
+        // Skip separation for very far enemies
+        const distToPlayerSq = (a.x - player.x) ** 2 + (a.y - player.y) ** 2;
+        if (distToPlayerSq > activeRadiusSq) continue;
+
         const ra = (a.def.width || 32) / 2;
 
         for (let j = i + 1; j < enemies.length; j++) {
             const b = enemies[j];
-            if (b.dead) continue;
-            const rb = (b.def.width || 32) / 2;
-
+            if (b.dead || !b.sprite.visible) continue;
+            
             const dx = b.x - a.x;
             const dy = b.y - a.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            const distSq = dx * dx + dy * dy;
+            const rb = (b.def.width || 32) / 2;
             const minDist = ra + rb;
 
-            if (dist < minDist) {
-                // Overlap amount
+            if (distSq < minDist * minDist) {
+                const dist = Math.sqrt(distSq) || 0.01;
                 const overlap = (minDist - dist) * 0.5;
                 const nx = dx / dist;
                 const ny = dy / dist;
-                // Push apart proportionally to the overlap
                 a.setPosition(a.x - nx * overlap, a.y - ny * overlap);
                 b.setPosition(b.x + nx * overlap, b.y + ny * overlap);
             }
         }
     }
 }
+
 
 // ============================================================
 //  WaveSpawner
@@ -807,24 +832,44 @@ class WaveSpawner {
 class PulpGem {
     constructor(scene, x, y, value, refined = false) {
         this.scene = scene;
+        this.sprite = scene.add.circle(x, y, refined ? 9 : 6, refined ? 0xffffff : 0xffee33, 1).setDepth(6);
+        this.sprite.setStrokeStyle(2, 0x000000);
+        this.reset(x, y, value, refined);
+    }
+
+    reset(x, y, value, refined = false) {
         this.x = x;
         this.y = y;
         this.value = value;
         this.refined = refined;
         this.dead = false;
         this.siphon = false;
-        this.sprite = scene.add.circle(x, y, refined ? 9 : 6, refined ? 0xffffff : 0xffee33, 1).setDepth(6);
-        this.sprite.setStrokeStyle(2, 0x000000);
+        this.sprite.setPosition(x, y);
+        this.sprite.setVisible(true);
+        this.sprite.setRadius(refined ? 9 : 6);
+        this.sprite.setFillStyle(refined ? 0xffffff : 0xffee33);
+
+        if (this.refinedTween) { this.refinedTween.stop(); this.refinedTween = null; }
         if (refined) {
-            scene.tweens.add({ targets: this.sprite, scaleX: 1.4, scaleY: 1.4, duration: 400, yoyo: true, repeat: -1 });
+            this.refinedTween = this.scene.tweens.add({
+                targets: this.sprite, scaleX: 1.4, scaleY: 1.4,
+                duration: 400, yoyo: true, repeat: -1
+            });
+        } else {
+            this.sprite.setScale(1);
         }
+    }
+
+    onRelease() {
+        this.dead = true;
+        this.sprite.setVisible(false);
+        if (this.refinedTween) { this.refinedTween.stop(); this.refinedTween = null; }
     }
 
     update(delta, px, py, magnetRadius) {
         if (this.dead) return;
         const d = Phaser.Math.Distance.Between(this.x, this.y, px, py);
         if (this.siphon || d < magnetRadius) {
-            // Attract to player
             const ang = Math.atan2(py - this.y, px - this.x);
             const spd = CONFIG.PULP_MAGNET_SPEED * (delta / 1000);
             this.x += Math.cos(ang) * spd;
@@ -837,10 +882,13 @@ class PulpGem {
     }
 
     _collect() {
-        this.dead = true;
-        this.scene.events.emit('pulp_collected', this.value);
-        this.sprite.destroy();
+        this.scene._onPulpCollected(this.value);
+        this.scene.pulpPool.release(this);
     }
 
-    destroy() { this.sprite?.destroy(); this.dead = true; }
+    destroy() {
+        this.onRelease();
+        this.sprite?.destroy();
+    }
 }
+

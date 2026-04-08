@@ -26,55 +26,82 @@ class Ability {
 
     fireProjectile(angle, speed, dmg, color, size, piercing = false, lifetime = 900) {
         const s = this.scene;
+        if (s.playSound) s.playSound('shoot', { volume: 0.15, rate: 0.8 + Math.random() * 0.4 });
 
-        if (s.sound.get('sfx_shoot')) s.sound.play('sfx_shoot', { volume: 0.15, rate: 0.8 + Math.random() * 0.4 });
-        const p = s.add.circle(this.player.x, this.player.y, size, color, 1).setDepth(18);
-        const glow = s.add.circle(this.player.x, this.player.y, size * 1.8, color, 0.3).setDepth(17);
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-        let hit = new Set();
-        let age = 0;
-        const id = s.time.addEvent({
-            delay: 16, repeat: Math.floor(lifetime / 16), callback: () => {
-                if (p.destroyed) return;
-                const dt = 16 / 1000;
+        // Pool or create projectile objects
+        if (!s.projPool) {
+            s.projs = [];
+            s.projPool = new ObjectPool((...args) => {
+                const p = s.add.circle(0,0, 4, 0xffffff, 1).setDepth(18);
+                const g = s.add.circle(0,0, 6, 0xffffff, 0.3).setDepth(17);
+                return { main: p, glow: g, reset: (x,y,sz,col) => {
+                    p.setPosition(x,y); p.setRadius(sz); p.setFillStyle(col); p.setVisible(true);
+                    g.setPosition(x,y); g.setRadius(sz*1.8); g.setFillStyle(col); g.setVisible(true);
+                }, onRelease: () => { p.setVisible(false); g.setVisible(false); } };
+            });
+        }
+
+        const pObj = s.projPool.get(this.player.x, this.player.y, size, color);
+        const p = pObj.main, glow = pObj.glow;
+        const vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed;
+        let hit = new Set(), age = 0;
+
+        const pData = {
+            update: (dt) => {
+                age += dt * 1000;
                 p.x += vx * dt; p.y += vy * dt;
                 glow.x = p.x; glow.y = p.y;
-                age += 16;
-                // bounds
-                if (p.x < -100 || p.x > s.worldW + 100 || p.y < -100 || p.y > s.worldH + 100 || age >= lifetime) {
-                    p.destroy(); glow.destroy(); return;
+
+                if (age >= lifetime || p.x < -200 || p.x > s.worldW + 200 || p.y < -200 || p.y > s.worldH + 200) {
+                    this._releaseProj(pData, pObj); return;
                 }
-                // collision
-                for (const e of s.enemies) {
+
+                // collision (optimized: only check if on screen)
+                if (!s.cameras.main.worldView.contains(p.x, p.y)) return;
+
+                for (let i = 0; i < s.enemies.length; i++) {
+                    const e = s.enemies[i];
                     if (e.dead || hit.has(e)) continue;
-                    if (Phaser.Math.Distance.Between(p.x, p.y, e.x, e.y) < size + e.width / 2) {
+                    const dSq = (p.x - e.x)**2 + (p.y - e.y)**2;
+                    const r = size + (e.def.width || 32)/2;
+                    if (dSq < r*r) {
                         const crit = Math.random() < this.player.critChance;
                         const dmgF = dmg * this.player.damageMult * (crit ? 4 : 1);
                         e.takeDamage(dmgF, p.x, p.y);
                         GameUtils.floatText(s, e.x, e.y - 20, Math.round(dmgF) + (crit ? '!!' : ''), crit ? '#ff2222' : '#fff');
-                        if (!piercing) { p.destroy(); glow.destroy(); return; }
+                        if (!piercing) { this._releaseProj(pData, pObj); return; }
                         hit.add(e);
                     }
                 }
             }
-        });
-        return { circle: p, glow };
+        };
+        s.projs.push(pData);
+        return pData;
+    }
+
+    _releaseProj(pData, pObj) {
+        const s = this.scene;
+        const idx = s.projs.indexOf(pData);
+        if (idx !== -1) s.projs.splice(idx, 1);
+        s.projPool.release(pObj);
     }
 
     aoeAttack(x, y, radius, dmg, color, duration = 350) {
         const s = this.scene;
-        if (s.sound.get('sfx_shoot')) s.sound.play('sfx_shoot', { volume: 0.25, rate: 0.6 + Math.random() * 0.2 });
+        if (s.playSound) s.playSound('shoot', { volume: 0.25, rate: 0.6 + Math.random() * 0.2 });
         const ring = s.add.circle(x, y, radius, color, 0.25).setDepth(18);
         const edge = s.add.arc(x, y, radius, 0, 360, false, color, 0.9).setDepth(19).setStrokeStyle(3, color);
         s.tweens.add({
             targets: [ring, edge], alpha: 0, scaleX: 1.3, scaleY: 1.3, duration, ease: 'Cubic.Out',
             onComplete: () => { ring.destroy(); edge.destroy(); }
         });
+        
+        const realRadius = radius * this.player.aoeMult;
+        const rSq = realRadius * realRadius;
         for (const e of s.enemies) {
             if (e.dead) continue;
-            const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
-            if (d < radius * this.player.aoeMult) {
+            const dSq = (x - e.x)**2 + (y - e.y)**2;
+            if (dSq < rSq) {
                 const crit = Math.random() < this.player.critChance;
                 const dmgF = dmg * this.player.damageMult * (crit ? 4 : 1);
                 e.takeDamage(dmgF, x, y);
@@ -84,6 +111,7 @@ class Ability {
         GameUtils.screenShake(s, { intensity: 3, duration: 70 });
     }
 }
+
 
 // ============================================================
 //  ALCHEMIST abilities
@@ -939,7 +967,189 @@ class GravityWell extends Ability {
 }
 
 // ============================================================
+//  ALCHEMIST special abilities (new)
+// ============================================================
+
+/**
+ * Storm Call — every ~30 s, purple-electric lightning fans out from the player
+ * to ALL visible enemies in a 400px radius, chaining between them.
+ */
+class StormCall extends Ability {
+    constructor(s, p) {
+        super(s, p, 'storm_call', 'unleashes a massive purple lightning storm hitting all nearby enemies');
+        this.cooldown = 30000;
+    }
+
+    update(delta) {
+        this.timer += delta;
+        if (this.timer < this.cooldown / this.player.atkSpdMult) return;
+        this.timer = 0;
+
+        const radius = 400 * this.player.aoeMult;
+        const nearby = this.scene.enemies.filter(e =>
+            !e.dead && Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) < radius
+        );
+
+        if (!nearby.length) return;
+
+        // --- Visual: warning pulse ---
+        const warn = this.scene.add.circle(this.player.x, this.player.y, 20, 0xaa00ff, 0.5).setDepth(19);
+        this.scene.tweens.add({
+            targets: warn, scaleX: radius / 20, scaleY: radius / 20, alpha: 0,
+            duration: 600, ease: 'Cubic.Out', onComplete: () => warn.destroy()
+        });
+
+        GameUtils.floatText(this.scene, this.player.x, this.player.y - 70, '⚡ STORM CALL ⚡', '#cc44ff', 22);
+
+        // --- Strike after telegraph ---
+        this.scene.time.delayedCall(600, () => {
+            if (this.player.dead) return;
+            GameUtils.screenShake(this.scene, { intensity: 8, duration: 200 });
+
+            // Flash camera purple
+            this.scene.cameras.main.flash(250, 170, 0, 255, 0.35);
+
+            let prev = { x: this.player.x, y: this.player.y };
+            for (const e of nearby) {
+                if (e.dead) continue;
+
+                // Jagged lightning bolt graphic
+                const g = this.scene.add.graphics().setDepth(23);
+                g.lineStyle(3, 0xcc44ff, 1.0);
+                g.beginPath();
+                g.moveTo(prev.x, prev.y);
+                const steps = 6;
+                const dx = (e.x - prev.x) / steps, dy = (e.y - prev.y) / steps;
+                for (let i = 1; i <= steps; i++) {
+                    g.lineTo(prev.x + dx * i + Phaser.Math.Between(-14, 14),
+                        prev.y + dy * i + Phaser.Math.Between(-14, 14));
+                }
+                g.lineTo(e.x, e.y);
+                g.strokePath();
+
+                // Glow layer
+                g.lineStyle(10, 0xff00ff, 0.15);
+                g.beginPath(); g.moveTo(this.player.x, this.player.y); g.lineTo(e.x, e.y); g.strokePath();
+
+                this.scene.time.delayedCall(300, () => g.destroy());
+
+                const crit = Math.random() < this.player.critChance;
+                const dmg = 45 * this.player.damageMult * (crit ? 4 : 1);
+                e.takeDamage(dmg, this.player.x, this.player.y);
+                e.stunTimer = (e.stunTimer || 0) + 600;
+                GameUtils.floatText(this.scene, e.x, e.y - 22, Math.round(dmg) + (crit ? '!!' : ''), '#cc44ff');
+
+                prev = { x: e.x, y: e.y };
+            }
+        });
+    }
+}
+
+/**
+ * Ferment Bomb — lobs a slow, arcing acid-ethanol cocktail that creates a
+ * massive lingering poison cloud on impact. Creative twist: it can
+ * "infect" one enemy and spread the cloud when it dies.
+ */
+class FermentBomb extends Ability {
+    constructor(s, p) {
+        super(s, p, 'ferment_bomb', 'Lobs a toxic bomb that creates a large spreading poison cloud on impact');
+        this.cooldown = 8000;
+    }
+
+    update(delta) {
+        this.timer += delta;
+        if (this.timer < this.cooldown / this.player.atkSpdMult) return;
+        this.timer = 0;
+
+        // Pick a target near the nearest enemy
+        const target = this.nearestEnemy(this.scene.enemies);
+        const tx = target
+            ? target.x + Phaser.Math.Between(-30, 30)
+            : this.player.x + Phaser.Math.Between(-200, 200);
+        const ty = target
+            ? target.y + Phaser.Math.Between(-30, 30)
+            : this.player.y + Phaser.Math.Between(-200, 200);
+
+        // Animate the bomb arcing across the screen
+        const bomb = this.scene.add.circle(this.player.x, this.player.y, 10, 0x99ff33, 1).setDepth(20);
+        const glow = this.scene.add.circle(this.player.x, this.player.y, 18, 0x44aa00, 0.4).setDepth(19);
+
+        // Arc tween: go up then come down
+        this.scene.tweens.add({
+            targets: bomb,
+            x: tx, y: ty,
+            duration: 700,
+            ease: 'Quad.easeIn',
+            onUpdate: (tw) => {
+                // Parabolic arc via sine of progress
+                const prog = tw.progress;
+                bomb.y = Phaser.Math.Linear(this.player.y, ty, prog) - Math.sin(prog * Math.PI) * 130;
+                bomb.scaleX = bomb.scaleY = 1 + Math.sin(prog * Math.PI) * 0.6;
+                glow.setPosition(bomb.x, bomb.y);
+            },
+            onComplete: () => {
+                bomb.destroy(); glow.destroy();
+                this._explode(tx, ty, target);
+            }
+        });
+
+        GameUtils.floatText(this.scene, this.player.x, this.player.y - 50, '💀 FERMENT BOMB', '#99ff33', 16);
+    }
+
+    _explode(tx, ty, infected) {
+        const s = this.scene;
+        const radius = 90 * this.player.aoeMult;
+
+        // Impact burst
+        this.aoeAttack(tx, ty, radius, 28, 0x99ff33, 600);
+        GameUtils.screenShake(s, { intensity: 5, duration: 100 });
+
+        // Rising smoke cloud graphic
+        const cloud = s.add.circle(tx, ty, radius * 0.7, 0x44bb00, 0.25).setDepth(8);
+        const cloudEdge = s.add.arc(tx, ty, radius * 0.7, 0, 360, false, 0x99ff33, 0.5)
+            .setDepth(9).setStrokeStyle(2, 0x99ff33);
+
+        // Slowly pulse the cloud
+        s.tweens.add({
+            targets: [cloud, cloudEdge], scaleX: 1.2, scaleY: 1.2, alpha: 0.7,
+            duration: 800, yoyo: true, repeat: 4,
+            onComplete: () => { cloud.destroy(); cloudEdge.destroy(); }
+        });
+
+        // DOT ticks inside cloud
+        let ticks = 0;
+        s.time.addEvent({
+            delay: 600, repeat: 7, callback: () => {
+                for (const e of s.enemies) {
+                    if (e.dead) continue;
+                    if (Phaser.Math.Distance.Between(tx, ty, e.x, e.y) < radius * 0.7) {
+                        e.takeDamage(10 * this.player.damageMult, tx, ty);
+                        e.speed = (e.def.speed || 60) * 0.6; // slow
+                    }
+                }
+                ticks++;
+            }
+        });
+
+        // Infect one enemy: when it dies the cloud moves to it
+        if (infected && !infected.dead) {
+            s.time.delayedCall(100, () => {
+                const orig = infected.onEnemyKilledHooks;
+                infected._fermentInfected = true;
+                // If the infected enemy gets killed, spread the cloud at its position
+                const origDie = infected._die?.bind(infected);
+                infected._die = () => {
+                    this._explode(infected.x, infected.y, null);
+                    if (origDie) origDie();
+                };
+            });
+        }
+    }
+}
+
+// ============================================================
 //  Ability registry
+
 // ============================================================
 const ABILITY_CLASSES = {
     zapping_stem: ZappingStem,
@@ -947,6 +1157,8 @@ const ABILITY_CLASSES = {
     acid_rain: AcidRain,
     solar_flare: SolarFlare,
     molecular_rebuild: MolecularRebuild,
+    storm_call: StormCall,
+    ferment_bomb: FermentBomb,
     heavy_slap: HeavySlap,
     spin_kick: SpinKick,
     shockwave: Shockwave,

@@ -93,9 +93,10 @@ class BaseObject {
         this.hp -= amount;
         this._updateHpBar();
         // Play a random hit sfx variant for variety
-        const hitKeys = ['sfx_hit', 'sfx_hit2', 'sfx_hit3'];
+        const hitKeys = ['hit', 'hit2', 'hit3'];
         const hk = hitKeys[Math.floor(Math.random() * hitKeys.length)];
-        if (this.scene.sound.get(hk)) this.scene.sound.play(hk, { volume: 0.3, rate: 0.9 + Math.random() * 0.2 });
+        if (this.scene.playSound) this.scene.playSound(hk, { volume: 0.3, rate: 0.9 + Math.random() * 0.2 });
+
         // Flash white
         this.scene.tweens.add({ targets: this.sprite, alpha: 0.2, duration: CONFIG.FLASH_DURATION_MS, yoyo: true });
         // Knockback
@@ -112,7 +113,8 @@ class BaseObject {
     _die() {
         this.dead = true;
         // sfx_death_enemy: standard creature death sound (registered as CONFIG.SFX.death_enemy)
-        if (this.scene.sound.get('sfx_death_enemy')) this.scene.sound.play('sfx_death_enemy', { volume: 0.4, rate: 0.8 + Math.random() * 0.4 });
+        if (this.scene.playSound) this.scene.playSound('death_enemy', { volume: 0.4, rate: 0.8 + Math.random() * 0.4 });
+
         // Juice: burst particles
         GameUtils.burst(this.scene, this.x, this.y, this.def.color || 0xff00ff);
         this.destroy();
@@ -271,3 +273,27 @@ const GameUtils = {
         });
     }
 };
+
+// ============================================================
+//  ObjectPool — Generic pooling system to avoid GC stutters
+// ============================================================
+class ObjectPool {
+    constructor(createFn) {
+        this.createFn = createFn;
+        this.pool = [];
+    }
+
+    get(...args) {
+        if (this.pool.length > 0) {
+            const obj = this.pool.pop();
+            if (obj.reset) obj.reset(...args);
+            return obj;
+        }
+        return this.createFn(...args);
+    }
+
+    release(obj) {
+        if (obj.onRelease) obj.onRelease();
+        this.pool.push(obj);
+    }
+}

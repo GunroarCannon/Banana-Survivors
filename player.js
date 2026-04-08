@@ -214,7 +214,7 @@ const CLASS_DEFS = {
         desc: 'Master of volatile concoctions. Excels at elemental chain reactions.',
         color: 0x44ffaa, speed: 200, hp: 100, source: 'alchemist', animType: 'bounce',
         level_up_heal: 10,
-        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild']
+        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'storm_call', 'ferment_bomb']
     },
     bruiser: {
         name: 'Bruiser',

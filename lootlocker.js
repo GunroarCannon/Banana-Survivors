@@ -202,6 +202,51 @@ class LootLockerService {
         this.sessionToken = null;
         this.isOnline = false;
     }
+
+    // ── Total Kills (GRIND) Leaderboard — key: mostkills, id: 33980 ─────────
+    async submitTotalKills(totalKills) {
+        await this.ensureSession();
+        if (!this.sessionToken || !this.isOnline) return { queued: true };
+        const name = localStorage.getItem('player_name') || 'Anonymous';
+        const payload = { member_id: name, score: totalKills };
+        try {
+            const response = await fetch(`https://api.lootlocker.io/game/leaderboards/33980/submit`, {
+                method: 'POST',
+                headers: {
+                    'x-session-token': this.sessionToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`Submit failed: ${response.status}`);
+            return await response.json();
+        } catch (e) {
+            console.warn('submitTotalKills failed', e);
+            return null;
+        }
+    }
+
+    async getTopTotalKills(count = 15) {
+        await this.ensureSession();
+        try {
+            const response = await fetch(`https://api.lootlocker.io/game/leaderboards/33980/list?count=${count}`, {
+                method: 'GET',
+                headers: {
+                    'x-session-token': this.sessionToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            this.isOnline = true;
+            if (!data.items && data.rank) return [data];
+            if (data[0] && !data.items) return data;
+            return data.items || [];
+        } catch (e) {
+            this.isOnline = false;
+            console.error('Failed to get total kills scores', e);
+            return null;
+        }
+    }
 }
 
-window.lootLocker = new LootLockerService();
+window.lootLocker = new LootLockerService();

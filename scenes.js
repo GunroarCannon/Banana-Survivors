@@ -343,6 +343,10 @@ class ClassSelectScene extends Phaser.Scene {
         const classes = Object.entries(CLASS_DEFS);
         const rows = classes.length;
         const cardW = W - 50;
+
+        // --- Unlock Notification ---
+        this._checkUnlocks(W, H);
+
         const cardH = 100;
         const startY = 190;
 
@@ -502,7 +506,146 @@ class ClassSelectScene extends Phaser.Scene {
             return { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0 };
         }
     }
+
+    _checkUnlocks(W, H) {
+        const stats = this._loadStats();
+        const seenUnlocked = JSON.parse(localStorage.getItem('banana_seen_unlocked') || '[]');
+        const newlyUnlocked = [];
+
+        for (const [key, def] of Object.entries(CLASS_DEFS)) {
+            if (!def.unlockCond) continue;
+            if (seenUnlocked.includes(key)) continue;
+
+            const cond = def.unlockCond;
+            let unlocked = false;
+            if (cond.type === 'totalRuns' && stats.totalRuns >= cond.value) unlocked = true;
+            if (cond.type === 'maxKills' && stats.maxKills >= cond.value) unlocked = true;
+            if (cond.type === 'totalKills' && stats.totalKills >= cond.value) unlocked = true;
+            if (cond.type === 'maxLevel' && stats.maxLevel >= cond.value) unlocked = true;
+
+            if (unlocked) newlyUnlocked.push(def.name);
+        }
+
+        if (newlyUnlocked.length === 0) return;
+
+        // Mark as seen
+        const combined = [...seenUnlocked, ...Object.keys(CLASS_DEFS).filter(k => {
+            const def = CLASS_DEFS[k]; if (!def.unlockCond) return false;
+            const cond = def.unlockCond;
+            if (cond.type === 'totalRuns' && stats.totalRuns >= cond.value) return true;
+            if (cond.type === 'maxKills' && stats.maxKills >= cond.value) return true;
+            if (cond.type === 'totalKills' && stats.totalKills >= cond.value) return true;
+            if (cond.type === 'maxLevel' && stats.maxLevel >= cond.value) return true;
+            return false;
+        })];
+        localStorage.setItem('banana_seen_unlocked', JSON.stringify([...new Set(combined)]));
+
+        // Show toast(s) after a short delay
+        newlyUnlocked.forEach((name, idx) => {
+            this.time.delayedCall(600 + idx * 1200, () => {
+                this._showUnlockToast(W, H, name);
+            });
+        });
+    }
+
+    _showUnlockToast(W, H, name) {
+        // --- Excited fanfare via Web Audio API ---
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime + i * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.22);
+                osc.start(ctx.currentTime + i * 0.12);
+                osc.stop(ctx.currentTime + i * 0.12 + 0.25);
+            });
+            // Extra sparkle arpeggio after the chord
+            [1047, 1319, 1568].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + 0.55 + i * 0.09);
+                gain.gain.setValueAtTime(0.12, ctx.currentTime + 0.55 + i * 0.09);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55 + i * 0.09 + 0.18);
+                osc.start(ctx.currentTime + 0.55 + i * 0.09);
+                osc.stop(ctx.currentTime + 0.55 + i * 0.09 + 0.2);
+            });
+        } catch (_) { }
+
+        // --- Blocking overlay (dims the background) ---
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.62)
+            .setDepth(498).setInteractive(); // eating clicks so they don't fall through
+
+        // --- Modal container ---
+        const modal = this.add.container(W / 2, H / 2 + 60).setDepth(499).setAlpha(0);
+
+        const panelW = W - 48, panelH = 260;
+
+        // Glow/shadow
+        const shadow = this.add.nineslice(3, 6, 'round_rect', 0, panelW, panelH, 16, 16, 16, 16)
+            .setTint(0xffd700).setAlpha(0.3);
+        // Main card
+        const bg = this.add.nineslice(0, 0, 'round_rect', 0, panelW, panelH, 16, 16, 16, 16)
+            .setTint(0x1a1a2e);
+        // gold border
+        const border = this.add.nineslice(0, 0, 'round_rect_outline', 0, panelW, panelH, 16, 16, 16, 16)
+            .setTint(0xffd700);
+
+        // Star burst icon
+        const icon = this.add.image(0, -70, 'star').setDisplaySize(54, 54).setTint(0xffd700);
+
+        // Animated scale bounce on icon
+        this.tweens.add({
+            targets: icon, scaleX: 1.25, scaleY: 1.25,
+            duration: 320, yoyo: true, repeat: -1, ease: 'Sine.InOut'
+        });
+
+        const header = this.add.text(0, -22, '🔓 CLASS UNLOCKED!', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#ffd700'
+        }).setOrigin(0.5);
+
+        const nameText = this.add.text(0, 15, name, {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '26px', fill: '#ffffff'
+        }).setOrigin(0.5);
+
+        const hint = this.add.text(0, 55, 'Tap anywhere to continue', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '13px', fill: '#888888'
+        }).setOrigin(0.5);
+
+        modal.add([shadow, bg, border, icon, header, nameText, hint]);
+
+        // --- Animate in: fly up from below + fade ---
+        this.tweens.add({
+            targets: modal,
+            y: H / 2, alpha: 1,
+            duration: 420, ease: 'Back.Out'
+        });
+
+        // --- Dismiss on any tap/click AFTER it's visible ---
+        const dismiss = () => {
+            this.input.off('pointerdown', dismiss);
+            this.tweens.add({
+                targets: [modal, overlay],
+                y: modal.y - 30, alpha: 0,
+                duration: 280, ease: 'Cubic.In',
+                onComplete: () => { modal.destroy(); overlay.destroy(); }
+            });
+        };
+
+        // Small delay so the tap that triggered the unlock doesn't instantly dismiss
+        this.time.delayedCall(500, () => {
+            this.input.on('pointerdown', dismiss);
+        });
+    }
 }
+
+
 
 // ============================================================
 //  MainMenuScene
@@ -640,62 +783,79 @@ class LeaderboardScene extends Phaser.Scene {
 
     async create() {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        this.W = W; this.H = H;
+
+        // Background
         for (let x = 0; x < W; x += 512)
             for (let y = 0; y < H; y += 512)
                 this.add.image(x, y, 'background').setOrigin(0, 0);
 
-        this.panel = UIManager.createMenuPanel(this, W / 2, H / 2, W - 40, H - 100, 'Leaderboard');
-        this.listItems = [];
-        this._fetchScores();
+        // Panel title
+        this.add.text(W / 2, 52, 'LEADERBOARD', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '28px',
+            fill: '#2c3e50', stroke: '#ffd700', strokeThickness: 2
+        }).setOrigin(0.5);
 
-        UIManager.createMenuButton(this, W / 2, H - 85, 160, 44, 'Back', () => {
+        // ── Tabs ────────────────────────────────────────────────
+        const tabY = 95;
+        const tabW = (W - 60) / 2;
+
+        this.activeTab = 'best';
+        this.listItems = [];
+
+        // Tab backgrounds
+        this._tabBestBg = this.add.nineslice(W / 2 - tabW / 2 - 4, tabY, 'round_rect', 0, tabW, 42, 12, 12, 12, 12).setOrigin(0.5).setTint(0xffd700);
+        this._tabGrindBg = this.add.nineslice(W / 2 + tabW / 2 + 4, tabY, 'round_rect', 0, tabW, 42, 12, 12, 12, 12).setOrigin(0.5).setTint(0xdddddd);
+
+        this._tabBestTxt = this.add.text(W / 2 - tabW / 2 - 4, tabY, 'BEST RUN', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '15px', fill: '#2c3e50'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this._tabGrindTxt = this.add.text(W / 2 + tabW / 2 + 4, tabY, 'GRIND', {
+            fontFamily: "'Fredoka One', sans-serif", fontSize: '15px', fill: '#666'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        // Panel for list
+        this.panel = UIManager.createMenuPanel(this, W / 2, H / 2 + 28, W - 40, H - 185, '');
+
+        // Tab clicks
+        this._tabBestTxt.on('pointerdown', () => this._switchTab('best'));
+        this._tabGrindTxt.on('pointerdown', () => this._switchTab('grind'));
+
+        // Back button
+        UIManager.createMenuButton(this, W / 2, H - 75, 160, 44, 'Back', () => {
             this.scene.start('MainMenu');
         });
 
         this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
+
+        this._fetchScores('best');
     }
 
-    async _processPendingScore() {
-        let pending = localStorage.getItem('banana_pending_score');
-        if (!pending) return;
-        try {
-            let pendingList = JSON.parse(pending);
-            if (!Array.isArray(pendingList)) pendingList = [{ runId: 'legacy', data: pendingList }];
-            if (pendingList.length === 0) return;
+    _switchTab(tab) {
+        this.activeTab = tab;
 
-            let playerName = localStorage.getItem('player_name') || 'Anonymous';
-            await window.lootLocker.setPlayerName(playerName);
+        // Tab highlight
+        const activeColor = 0xffd700, inactiveColor = 0xdddddd;
+        const activeFill = '#2c3e50', inactiveFill = '#666';
 
-            const remaining = [];
-            for (const p of pendingList) {
-                try {
-                    const run = p.data;
-                    const metadata = { class: run.className, time: run.survivedTime, lvl: run.level };
-                    console.log("Found crashed pending score, submitting...");
-                    await window.lootLocker.submitScore(run.kills, metadata);
-                } catch (e) {
-                    console.error("Failed to process one pending score", e);
-                    remaining.push(p);
-                }
-            }
+        this._tabBestBg.setTint(tab === 'best' ? activeColor : inactiveColor);
+        this._tabGrindBg.setTint(tab === 'grind' ? activeColor : inactiveColor);
+        this._tabBestTxt.setStyle({ fill: tab === 'best' ? activeFill : inactiveFill });
+        this._tabGrindTxt.setStyle({ fill: tab === 'grind' ? activeFill : inactiveFill });
 
-            if (remaining.length > 0) {
-                localStorage.setItem('banana_pending_score', JSON.stringify(remaining));
-            } else {
-                localStorage.removeItem('banana_pending_score');
-            }
-        } catch (e) {
-            console.error("Failed to parse pending score array", e);
-        }
+        this._fetchScores(tab);
     }
 
-    async _fetchScores() {
-        const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+    async _fetchScores(tab) {
+        const W = this.W, H = this.H;
 
-        // Clean up old items
-        this.listItems.forEach(i => i.destroy());
+        // Clean up old list items
+        this.listItems.forEach(i => i?.destroy?.());
         this.listItems = [];
-        if (this.reloadBtn) { this.reloadBtn.destroy(); this.reloadBtn = null; }
+        if (this.reloadBtn) { this.reloadBtn.destroy?.(); this.reloadBtn = null; }
+
+        const listStartY = 160;
 
         const loading = this.add.text(W / 2, H / 2, 'FETCHING SCORES...', {
             fontFamily: "'Fredoka One', sans-serif", fontSize: '18px', fill: '#888'
@@ -703,50 +863,78 @@ class LeaderboardScene extends Phaser.Scene {
         this.listItems.push(loading);
 
         try {
-            const response = { items: await window.lootLocker.getTopScores(15) };
+            let items;
+            if (tab === 'best') {
+                items = await window.lootLocker.getTopScores(12);
+            } else {
+                items = await window.lootLocker.getTopTotalKills(12);
+            }
+
             loading.destroy();
 
-            if (!response.items || response.items.length === 0) {
-                const noScores = this.add.text(W / 2, H / 2, !response.items && 'You are offline...' || 'NO SCORES YET', {
+            if (!items || items.length === 0) {
+                const msg = this.add.text(W / 2, H / 2, !items ? 'You are offline…' : 'NO SCORES YET', {
                     fontFamily: "'Fredoka One', sans-serif", fontSize: '20px', fill: '#666'
                 }).setOrigin(0.5);
-                this.listItems.push(noScores);
-            } else {
-                response.items.forEach((item, i) => {
-                    const py = 160 + i * 42;
-                    const r = this.add.text(60, py, `#${item.rank}`, {
-                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50'
-                    }).setOrigin(0, 0.5);
-
-                    const n = this.add.text(100, py, item.player.name || `Player ${item.player.id}`, {
-                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#2c3e50', fontWeight: 'bold'
-                    }).setOrigin(0, 0.5);
-
-                    const s = this.add.text(W - 60, py, item.score.toString(), {
-                        fontFamily: "'Fredoka One', sans-serif", fontSize: '16px', fill: '#e67e22'
-                    }).setOrigin(1, 0.5);
-
-                    this.listItems.push(r, n, s);
-
-                    if (item.metadata) {
-                        try {
-                            const meta = JSON.parse(item.metadata);
-                            const m = this.add.text(100, py + 12, `${meta.class} • ${meta.time}`, {
-                                fontFamily: "'Fredoka One', sans-serif", fontSize: '10px', fill: '#888'
-                            }).setOrigin(0, 0.5);
-                            this.listItems.push(m);
-                        } catch (e) { }
-                    }
-                });
+                this.listItems.push(msg);
+                return;
             }
+
+            // Sub-header
+            const subLabel = tab === 'best' ? 'Kills in one run' : 'Total kills ever';
+            const sub = this.add.text(W - 60, listStartY - 22, subLabel, {
+                fontFamily: "'Fredoka One', sans-serif", fontSize: '11px', fill: '#aaa'
+            }).setOrigin(1, 0.5);
+            this.listItems.push(sub);
+
+            items.forEach((item, i) => {
+                const py = listStartY + i * 32;
+
+                const rank = this.add.text(50, py, `#${item.rank}`, {
+                    fontFamily: "'Fredoka One', sans-serif", fontSize: '12px', fill: '#aaa'
+                }).setOrigin(0, 0.5);
+
+                const nameStr = item.player?.name || `Player #${item.player?.id ?? i}`;
+                const name = this.add.text(90, py, nameStr, {
+                    fontFamily: "'Fredoka One', sans-serif", fontSize: '12px', fill: '#2c3e50'
+                }).setOrigin(0, 0.5);
+
+                //remove silveer color
+                const scoreColor = i === 0 ? '#e6a817' : i === -1 ? '#aaaaaa' : i === 2 ? '#cd7f32' : '#e67e22';
+                const score = this.add.text(W - 52, py, item.score.toLocaleString(), {
+                    fontFamily: "'Fredoka One', sans-serif", fontSize: '12px', fill: scoreColor
+                }).setOrigin(1, 0.5);
+
+                this.listItems.push(rank, name, score);
+
+                // Metadata row (only for BEST tab, since GRIND has no metadata)
+                if (tab === 'best' && item.metadata) {
+                    try {
+                        const meta = JSON.parse(item.metadata);
+                        const metaTxt = this.add.text(90, py + 13, `${meta.class ?? ''} • ${meta.time ?? ''}`, {
+                            fontFamily: "'Fredoka One', sans-serif", fontSize: '9px', fill: '#888'
+                        }).setOrigin(0, 0.5);
+                        this.listItems.push(metaTxt);
+                    } catch (_) { }
+                }
+
+                // Separator line
+                if (i < items.length - 1) {
+                    const sep = this.add.rectangle(W / 2, py + 20, W - 80, 1, 0xe0c000, 0.2);
+                    this.listItems.push(sep);
+                }
+            });
+
         } catch (e) {
             loading.setText('OFFLINE');
             this.reloadBtn = UIManager.createMenuButton(this, W / 2, H / 2 + 50, 140, 40, 'Reload', () => {
-                this._fetchScores();
+                this._fetchScores(this.activeTab);
             });
         }
     }
 }
+
+
 
 // ============================================================
 //  StatsScene
@@ -841,10 +1029,15 @@ class GameScene extends Phaser.Scene {
         // Game state
         this.enemies = [];
         this.pulpGems = [];
+        this.pulpPool = new ObjectPool((...args) => new PulpGem(...args));
         this.paused = false;
         this.survivedSec = 0;
         this.totalKills = 0;
         this.totalPulpCollected = 0;
+        this.projs = [];
+
+        this._sfxCount = 0;
+
 
         // Music Loop
         this.currentMusic = null;
@@ -1102,8 +1295,9 @@ class GameScene extends Phaser.Scene {
         // Enemy-enemy collision separation (CONFIG.ENEMIES_COLLIDE toggle)
         // Prevents enemies from stacking on top of each other into a single hitbox pile.
         if (CONFIG.ENEMIES_COLLIDE) {
-            resolveEnemyCollisions(this.enemies);
+            resolveEnemyCollisions(this.enemies, this.player);
         }
+
 
         // Pulp gems
         const mr = this.player.magnetRadius;
@@ -1115,6 +1309,12 @@ class GameScene extends Phaser.Scene {
 
         // Enemy-player collision (deal damage)
         this._checkPlayerHit();
+
+        // Projectiles
+        const dtSeconds = delta / 1000;
+        for (let i = this.projs.length - 1; i >= 0; i--) {
+            this.projs[i].update(dtSeconds);
+        }
 
         // Spawner
         this.spawner.update(delta);
@@ -1150,9 +1350,10 @@ class GameScene extends Phaser.Scene {
     }
 
     _checkThornsAndCharge(e) {
-        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+        const distSq = (this.player.x - e.x) ** 2 + (this.player.y - e.y) ** 2;
         const touchRange = e.width / 2 + this.player.width / 2;
-        if (dist < touchRange) {
+        if (distSq < touchRange * touchRange) {
+
             // Thorns
             for (const abl of this.player.abilities) {
                 if (abl instanceof Thorns) abl.onEnemyTouch(e);
@@ -1170,8 +1371,10 @@ class GameScene extends Phaser.Scene {
     _checkPlayerHit() {
         for (const e of this.enemies) {
             if (e.dead) continue;
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
-            if (dist < e.width / 2 + this.player.width / 2 - 8) {
+            const distSq = (this.player.x - e.x) ** 2 + (this.player.y - e.y) ** 2;
+            const radiusSum = e.width / 2 + this.player.width / 2 - 8;
+            if (distSq < radiusSum * radiusSum) {
+
                 if (!e.attackCooldown) e.attackCooldown = 0;
                 e.attackCooldown -= 16;
                 if (e.attackCooldown <= 0) {
@@ -1188,15 +1391,27 @@ class GameScene extends Phaser.Scene {
     }
 
     spawnPulp(x, y, value, refined = false) {
-        const gem = new PulpGem(this, x, y, value, refined);
+        const gem = this.pulpPool.get(this, x, y, value, refined);
         this.pulpGems.push(gem);
     }
+
+    playSound(key, opts = {}) {
+        if (this._sfxCount >= (CONFIG.MAX_SIMULTANEOUS_SFX || 8)) return;
+        const sfx = this.sound.add('sfx_' + key, opts);
+        if (sfx) {
+            this._sfxCount++;
+            sfx.play();
+            sfx.once('complete', () => { this._sfxCount--; sfx.destroy(); });
+        }
+    }
+
 
     _onPulpCollected(value) {
         // Give XP
         this.xp += Math.round(value * this.player.xpMult);
         this.totalPulpCollected += value;
-        if (this.sound.get('sfx_collect')) this.sound.play('sfx_collect', { volume: 0.4, rate: 0.8 + Math.random() * 0.4 });
+        this.playSound('collect', { volume: 0.4, rate: 0.8 + Math.random() * 0.4 });
+
 
         const needed = CONFIG.PULP_PER_LEVEL[Math.min(this.level, CONFIG.PULP_PER_LEVEL.length - 1)] || (this.level * 80);
         this.xpNeeded = needed;
@@ -1409,9 +1624,21 @@ class GameScene extends Phaser.Scene {
             lvl: run.level
         };
 
-        console.log("awaaiting score submission", metadata)
+        console.log("awaiting score submission", metadata)
         const scoreData = await window.lootLocker.submitScore(run.kills, metadata);
         console.log("score submitted", scoreData)
+
+        // ── Submit to GRIND leaderboard (total lifetime kills) ──────────
+        try {
+            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{}');
+            const totalKills = stats.totalKills || 0;
+            if (totalKills > 0) {
+                await window.lootLocker.submitTotalKills(totalKills);
+                console.log("GRIND total kills submitted:", totalKills);
+            }
+        } catch (e) {
+            console.warn("Failed to submit total kills", e);
+        }
     }
 }
 
@@ -1434,7 +1661,8 @@ class UpgradeManager {
         let pool = [...UPGRADE_POOL];
         const iconMap = {
             'zapping_stem': 'lightning', 'static_peel': 'magnet', 'acid_rain': 'skull', 'solar_flare': 'explosion',
-            'heavy_slap': 'banana_icon', 'spin_kick': 'banana', 'shockwave': 'explosion', 'fruit_bat_swarm': 'bat'
+            'heavy_slap': 'banana_icon', 'spin_kick': 'banana', 'shockwave': 'explosion', 'fruit_bat_swarm': 'bat',
+            'storm_call': 'lightning', 'ferment_bomb': 'explosion'
         };
 
         for (const [key, AbilityClass] of Object.entries(ABILITY_CLASSES)) {
@@ -1489,9 +1717,12 @@ class GameOverScene extends Phaser.Scene {
             for (let y = 0; y < H; y += 64)
                 this.add.image(x + 32, y + 32, 'background').setAlpha(0.2).setDisplaySize(64, 64);
 
-        // Top gold banner
-        this.add.rectangle(W / 2, 120, W, 240, 0xffd700);
-        this.add.rectangle(W / 2, 126, W, 240, 0x2c3e50, 0.2);
+        // Top gold banner — rounded at bottom
+        const bannerGfx = this.add.graphics();
+        bannerGfx.fillStyle(0xffd700, 1);
+        bannerGfx.fillRoundedRect(0, 0, W, 220, { tl: 0, tr: 0, bl: 40, br: 40 });
+        bannerGfx.fillStyle(0x2c3e50, 0.2);
+        bannerGfx.fillRoundedRect(0, 0, W, 220, { tl: 0, tr: 0, bl: 40, br: 40 });
 
         // Icons tinted black per default icon color policy
         this.add.image(W / 2 - 80, 52, 'skull').setDisplaySize(40, 40).setTint(0x000000);
@@ -1506,10 +1737,12 @@ class GameOverScene extends Phaser.Scene {
             fontSize: '13px', fill: '#5d4037'
         }).setOrigin(0.5);
 
-        // Stats panel
+        // Stats panel — rounded with nineslice
         const panelY = H / 2 - 20;
-        this.add.rectangle(W / 2, panelY, W - 30, 280, 0xfffdf0)
-            .setStrokeStyle(3, 0xe0c000);
+        this.add.nineslice(W / 2, panelY, 'round_rect', 0, W - 30, 280, 16, 16, 16, 16)
+            .setTint(0xfffdf0);
+        this.add.nineslice(W / 2, panelY, 'round_rect_outline', 0, W - 30, 280, 16, 16, 16, 16)
+            .setTint(0xe0c000);
 
         const stats = [
             ['Class', d.className || '?'],

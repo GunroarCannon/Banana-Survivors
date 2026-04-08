@@ -4,12 +4,13 @@
 // ============================================================
 const CONFIG = {
     // ── Display ──────────────────────────────────────────────
-    WIDTH: 540,
-    HEIGHT: 960,
+    WIDTH: 360,
+    HEIGHT: 640,
 
-    MAX_ENEMIES: 60,
+    MAX_ENEMIES: 70,
+    MAX_SIMULTANEOUS_SFX: 8,
 
-    DEBUG: true,
+    DEBUG: false,
 
     // ── Player ───────────────────────────────────────────────
     BASE_SPEED: 180,
