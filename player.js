@@ -224,7 +224,8 @@ const CLASS_DEFS = {
         abilities: ['heavy_slap', 'spin_kick', 'shockwave', 'thorns', 'berserk_mush']
     },
     generic_banana: {
-        name: 'Banana Guy',
+        name: 'Random Banana Guy',
+        abilityText: 'Random',
         desc: 'Bland but reliable. Lower hp but heals faster and has access to all upgrades.',
         color: 0xffeeaa, speed: 180, hp: 50, source: 'banana', animType: 'bounce',
         level_up_heal: 30,

@@ -322,8 +322,8 @@ class ClassSelectScene extends Phaser.Scene {
         this.add.rectangle(W / 2, 100, W, 200, 0xa2c4c9, 0.6);
         this.add.rectangle(W / 2, 200, W, 4, 0x1a1a1a, 0.8);
 
-        this.add.image(W / 2 - 170, 54, 'banana').setDisplaySize(32, 32);
-        this.add.text(W / 2 + 20, 54, 'BANANA SURVIVORS', {
+        //this.add.image(W / 2 - 170, 54, 'banana').setDisplaySize(32, 32);
+        this.add.text(W / 2, 54, 'BANANA SURVIVORS', {
             fontFamily: "'Fredoka One', sans-serif",
             fontSize: '30px', fill: '#2c3e50',
             stroke: '#ffd700', strokeThickness: 2
@@ -403,7 +403,7 @@ class ClassSelectScene extends Phaser.Scene {
 
             if (!locked) {
                 // Core abilities
-                const coreAbils = def.abilities.slice(0, 3).join(' · ').replace(/_/g, ' ');
+                const coreAbils = def.abilityText ? def.abilityText : def.abilities.slice(0, 3).join(' · ').replace(/_/g, ' ');
                 const coreAbilsText = this.add.text(cx - cardW / 2 + 96, cy + 30, coreAbils, {
                     fontFamily: "'Fredoka One', sans-serif",
                     fontSize: '10px', fill: '#888'
