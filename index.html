@@ -100,7 +100,7 @@
         //navigator.serviceWorker.register("service-worker.js")
         if (true) {
             navigator.serviceWorker.register('service-worker.js').then(reg => {
-
+                console.log("Service worker registered.")
                 // Handle a waiting worker already present on page load
                 if (reg.waiting) {
                     askUserToUpdate(reg.waiting);
