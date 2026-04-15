@@ -4,6 +4,8 @@
 // ============================================================
 class BaseObject {
     constructor(scene, x, y, def = {}) {
+        this.increaseDamage = 1.0;
+
         this.scene = scene;
         this.x = x;
         this.y = y;
@@ -90,7 +92,7 @@ class BaseObject {
 
     takeDamage(amount, sourceX, sourceY) {
         if (this.dead) return;
-        this.hp -= amount;
+        this.hp -= amount * this.increaseDamage;
         this._updateHpBar();
         // Play a random hit sfx variant for variety
         const hitKeys = ['hit', 'hit2', 'hit3'];
@@ -296,4 +298,4 @@ class ObjectPool {
         if (obj.onRelease) obj.onRelease();
         this.pool.push(obj);
     }
-}
+}

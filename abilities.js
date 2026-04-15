@@ -32,12 +32,32 @@ class Ability {
         if (!s.projPool) {
             s.projs = [];
             s.projPool = new ObjectPool((...args) => {
-                const p = s.add.circle(0,0, 4, 0xffffff, 1).setDepth(18);
-                const g = s.add.circle(0,0, 6, 0xffffff, 0.3).setDepth(17);
-                return { main: p, glow: g, reset: (x,y,sz,col) => {
-                    p.setPosition(x,y); p.setRadius(sz); p.setFillStyle(col); p.setVisible(true);
-                    g.setPosition(x,y); g.setRadius(sz*1.8); g.setFillStyle(col); g.setVisible(true);
-                }, onRelease: () => { p.setVisible(false); g.setVisible(false); } };
+                const p = s.add.circle(0, 0, 4, 0xffffff, 1).setDepth(18);
+                const g = s.add.circle(0, 0, 6, 0xffffff, 0.3).setDepth(17);
+                return {
+                    main: p, glow: g, reset: (x, y, sz, col) => {
+                        try {
+                            /*TypeError: Cannot set properties of null (setting 'radius')
+    at initialize.set [as radius] (phaser.min.js:1:332508)
+    at initialize.setRadius (phaser.min.js:1:332950)
+    at Object.reset (abilities.js:40:52)
+    at ObjectPool.get (base.js:289:32)
+    at ThrownBlade.fireProjectile (abilities.js:50:33)
+    at ThrownBlade.update (abilities.js:766:14)
+    at Player.update (player.js:138:47)
+    at GameScene.update (scenes.js:1283:21)
+    at initialize.step (phaser.min.js:1:948791)
+    at initialize.update (phaser.min.js:1:935877)
+
+    ?? PROBLEM
+                            */
+                            p.setPosition(x, y); p.setRadius(sz); p.setFillStyle(col); p.setVisible(true);
+                            g.setPosition(x, y); g.setRadius(sz * 1.8); g.setFillStyle(col); g.setVisible(true);
+                        } catch (e) {
+                            console.log(e, " error  ")
+                        }
+                    }, onRelease: () => { p.setVisible(false); g.setVisible(false); }
+                };
             });
         }
 
@@ -62,9 +82,9 @@ class Ability {
                 for (let i = 0; i < s.enemies.length; i++) {
                     const e = s.enemies[i];
                     if (e.dead || hit.has(e)) continue;
-                    const dSq = (p.x - e.x)**2 + (p.y - e.y)**2;
-                    const r = size + (e.def.width || 32)/2;
-                    if (dSq < r*r) {
+                    const dSq = (p.x - e.x) ** 2 + (p.y - e.y) ** 2;
+                    const r = size + (e.def.width || 32) / 2;
+                    if (dSq < r * r) {
                         const crit = Math.random() < this.player.critChance;
                         const dmgF = dmg * this.player.damageMult * (crit ? 4 : 1);
                         e.takeDamage(dmgF, p.x, p.y);
@@ -95,12 +115,12 @@ class Ability {
             targets: [ring, edge], alpha: 0, scaleX: 1.3, scaleY: 1.3, duration, ease: 'Cubic.Out',
             onComplete: () => { ring.destroy(); edge.destroy(); }
         });
-        
+
         const realRadius = radius * this.player.aoeMult;
         const rSq = realRadius * realRadius;
         for (const e of s.enemies) {
             if (e.dead) continue;
-            const dSq = (x - e.x)**2 + (y - e.y)**2;
+            const dSq = (x - e.x) ** 2 + (y - e.y) ** 2;
             if (dSq < rSq) {
                 const crit = Math.random() < this.player.critChance;
                 const dmgF = dmg * this.player.damageMult * (crit ? 4 : 1);
@@ -1139,7 +1159,10 @@ class FermentBomb extends Ability {
                 // If the infected enemy gets killed, spread the cloud at its position
                 const origDie = infected._die?.bind(infected);
                 infected._die = () => {
-                    this._explode(infected.x, infected.y, null);
+                    if (!this._infectedExplodeDone) {
+                        this._infectedExplodeDone = true;
+                        this._explode(infected.x, infected.y, null);
+                    }
                     if (origDie) origDie();
                 };
             });

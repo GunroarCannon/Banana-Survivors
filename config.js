@@ -2,10 +2,11 @@
 //  BANANA SURVIVORS — Global Config
 //  All tunable values live here. Change freely.
 // ============================================================
+const nn = 1.2;
 const CONFIG = {
     // ── Display ──────────────────────────────────────────────
-    WIDTH: 360,
-    HEIGHT: 640,
+    WIDTH: 360 * nn,
+    HEIGHT: 640 * nn,
 
     MAX_ENEMIES: 70,
     MAX_SIMULTANEOUS_SFX: 8,
@@ -211,7 +212,7 @@ const ENEMY_DEFS = {
         width: 168 * 2, height: 168 * 2,
         hp: 1200,
         speed: 28,
-        damage: 40,
+        damage: 20,
         xp: 120,
         color: 0x44ccff,
         intensity: 4,
@@ -237,7 +238,7 @@ const ENEMY_DEFS = {
         // 'freeze_burst' AI slows and damages in a huge AoE shockwave
         ai: 'freeze_burst',
         isBoss: true,
-        animType: 'rock',
+        animType: 'bounce',
     },
 
     magma_lord: {
@@ -248,14 +249,14 @@ const ENEMY_DEFS = {
         width: 147, height: 147,
         hp: 1000,
         speed: 35,
-        damage: 45,
+        damage: 25,
         xp: 140,
         color: 0xff6600,
         intensity: 4,
         // 'magma_slam' AI leaves burning ground pools on slam
         ai: 'magma_slam',
         isElite: true,
-        animType: 'rock',
+        animType: 'bounce',
     },
     wasp: {
         key: 'wasp',

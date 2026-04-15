@@ -10,12 +10,13 @@ class Enemy extends BaseObject {
             hp: Math.round(rawDef.hp * statMult),
 
             //randomize the speed for more varied enemies
-            speed: rawDef.speed * Phaser.Math.Between(0.5, 1.0),
+            speed: rawDef.speed * Phaser.Math.Between(0.3, 1.0),
 
-            damage: Math.round(rawDef.damage * statMult),
+            damage: Math.round(rawDef.damage * statMult) * .45,
             faction: CONFIG.FACTIONS.ENEMY,
         };
         super(scene, x, y, def);
+        this.increaseDamage = 1.4;
         this.rotateToDirection = rawDef.rotateToDirection || false;
         this.xp = rawDef.xp || 2;
         this.xp *= Phaser.Math.FloatBetween(1, 2);
@@ -54,12 +55,12 @@ class Enemy extends BaseObject {
         this.isSpecial = true;
 
         const types = [
-            { id: 'swift', color: 0xffa500, scale: [1.25, 1.5], speedMult: 2.0, hpMult: 1.0, dmgMult: 1.0, label: 'Swift' },
-            { id: 'strong', color: 0xff0000, scale: [1.5, 2.0], speedMult: 1.0, hpMult: 1.5, dmgMult: 2.5, label: 'Strong' },
-            { id: 'tank', color: 0x8b4513, scale: [2.2, 3.5], speedMult: 0.5, hpMult: 6.0, dmgMult: 1.2, label: 'Tank' },
-            { id: 'radioactive', color: 0x00ff00, scale: [1.3, 1.6], speedMult: 1.6, hpMult: 1.6, dmgMult: 1.6, label: 'Radioactive' },
-            { id: 'ethereal', color: 0xaa00ff, scale: [0.8, 1.1], speedMult: 1.8, hpMult: 0.8, dmgMult: 1.3, label: 'Ethereal' },
-            { id: 'frosted', color: 0x0088ff, scale: [1.4, 1.8], speedMult: 0.8, hpMult: 2.5, dmgMult: 1.4, label: 'Frosted' }
+            { id: 'swift', color: 0xffa500, scale: [1.25, 1.5], speedMult: 1.6, hpMult: 1.0, dmgMult: 1.0, label: 'Swift' },
+            { id: 'strong', color: 0xff0000, scale: [1.5, 2.0], speedMult: 1.0, hpMult: 1.5, dmgMult: 2.0, label: 'Strong' },
+            { id: 'tank', color: 0x8b4513, scale: [1.6, 2.4], speedMult: 0.5, hpMult: 6.0, dmgMult: 1.2, label: 'Tank' },
+            { id: 'radioactive', color: 0x00ff00, scale: [1.1, 1.6], speedMult: 1.2, hpMult: 1.6, dmgMult: 1.3, label: 'Radioactive' },
+            { id: 'ethereal', color: 0xaa00ff, scale: [0.8, 1.1], speedMult: 1.4, hpMult: 0.8, dmgMult: 1.0, label: 'Ethereal' },
+            { id: 'frosted', color: 0x0088ff, scale: [1.3, 1.8], speedMult: 0.8, hpMult: 2.5, dmgMult: 1.2, label: 'Frosted' }
         ];
 
         const cfg = Phaser.Math.RND.pick(types);
@@ -105,8 +106,10 @@ class Enemy extends BaseObject {
         // --- Performance Optimizations ---
         // 1. Offscreen Culling & Logic Pause
         const cam = this.scene.cameras.main;
-        const isOnScreen = cam.worldView.contains(this.x, this.y);
-        if (this.sprite) this.sprite.visible = isOnScreen;
+        //const isOnScreen = cam.worldView.contains(this.x, this.y);
+        const d = Phaser.Math.Distance.Between(this.x, this.y, this.scene.player.x, this.scene.player.y);
+        const isOnScreen = d < CONFIG.HEIGHT || this.scene.enemies.lenght < 10;
+        //?? if (this.sprite) this.sprite.visible = isOnScreen;
 
         // If offscreen, skip ALL AI logic. Just stay still or maintain velocity.
         if (!isOnScreen) return;
@@ -114,9 +117,9 @@ class Enemy extends BaseObject {
         // 2. Logic Batching
         // Skip AI logic for 33% of enemies every frame if not very close to player
         const player = this.scene.player;
-        const distSq = (this.x - player.x)**2 + (this.y - player.y)**2;
+        const distSq = (this.x - player.x) ** 2 + (this.y - player.y) ** 2;
         const nearThresholdSq = 250 * 250;
-        
+
         // If not near player, skip 2 out of every 3 frames of AI logic
         if (distSq > nearThresholdSq && (this.scene.game.loop.frame % 3 !== this._batchOffset)) {
             // Still allow walk animation to tick so they don't look frozen if they are moving
@@ -161,6 +164,8 @@ class Enemy extends BaseObject {
         let target = this._findTarget(entities);
         if (!target) return;
 
+        this.target = target;
+
         const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
         const atkRange = (target.width || 32) / 2 + this.def.width / 2 + 4;
 
@@ -168,9 +173,9 @@ class Enemy extends BaseObject {
         const collisionThreshold = (this.def.width + (target.width || 42)) * 0.45;
         this._isColliding = (target.faction === CONFIG.FACTIONS.PLAYER && dist < collisionThreshold);
 
-        if (!this.collidedBefore) {
+        if (this._isColliding && !this.collidedBefore) {
             this.collidedBefore = true
-            this.speed *= 0.8
+            this.speed *= 0.6
         }
 
         // ── Special AI dispatch ──────────────────────────────
@@ -355,7 +360,7 @@ class Enemy extends BaseObject {
                     for (const e of entities) {
                         if (e.dead || e.faction === this.faction) continue;
                         if (Phaser.Math.Distance.Between(tx, ty, e.x, e.y) < radius * 0.7) {
-                            e.takeDamage(this.def.damage * 0.15, tx, ty);
+                            e.takeDamage(this.def.damage * 0.1, tx, ty);
                         }
                     }
                     ticks++;
@@ -426,6 +431,12 @@ class Enemy extends BaseObject {
     }
 
     _findTarget(entities) {
+
+        if (true && this.scene.player) {
+            return this.scene.player;
+        }
+
+        // All this is unneccessary looping per frame
         // Faction system: attack nearest entity of different faction
         let best = null, bestD = Infinity;
         for (const e of entities) {
@@ -561,10 +572,10 @@ class Enemy extends BaseObject {
         GameUtils.burst(this.scene, this.x, this.y, this.def.color || 0xff4422, 14);
         this.scene.events.emit('enemy_killed', this);
         // Drop pulp
-        const xpCount = Math.ceil(this.xp / 3);
+        const xpCount = Math.max(3, Math.ceil(this.xp / 3));
         for (let i = 0; i < xpCount; i++) {
             const ox = Phaser.Math.Between(-18, 18), oy = Phaser.Math.Between(-18, 18);
-            this.scene.spawnPulp(this.x + ox, this.y + oy, Math.ceil(this.xp / xpCount));
+            this.scene.spawnPulp(this.x + ox, this.y + oy, Math.ceil(this.xp / xpCount), Math.random() < .05);
         }
         this.destroy();
     }
@@ -578,7 +589,7 @@ class Enemy extends BaseObject {
 // ============================================================
 function resolveEnemyCollisions(enemies, player) {
     if (!enemies.length) return;
-    
+
     // Only resolve collisions for enemies relatively near the player (e.g., within 500px)
     // Most performance issues come from the crowded area around the player.
     const activeRadiusSq = 500 * 500;
@@ -586,7 +597,7 @@ function resolveEnemyCollisions(enemies, player) {
     for (let i = 0; i < enemies.length; i++) {
         const a = enemies[i];
         if (a.dead || !a.sprite.visible) continue;
-        
+
         // Skip separation for very far enemies
         const distToPlayerSq = (a.x - player.x) ** 2 + (a.y - player.y) ** 2;
         if (distToPlayerSq > activeRadiusSq) continue;
@@ -596,7 +607,7 @@ function resolveEnemyCollisions(enemies, player) {
         for (let j = i + 1; j < enemies.length; j++) {
             const b = enemies[j];
             if (b.dead || !b.sprite.visible) continue;
-            
+
             const dx = b.x - a.x;
             const dy = b.y - a.y;
             const distSq = dx * dx + dy * dy;
@@ -847,7 +858,7 @@ class PulpGem {
         this.sprite.setPosition(x, y);
         this.sprite.setVisible(true);
         this.sprite.setRadius(refined ? 9 : 6);
-        this.sprite.setFillStyle(refined ? 0xffffff : 0xffee33);
+        this.sprite.setFillStyle(refined ? 0xffee55 : 0xffee33);
 
         if (this.refinedTween) { this.refinedTween.stop(); this.refinedTween = null; }
         if (refined) {

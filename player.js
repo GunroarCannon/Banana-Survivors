@@ -37,6 +37,9 @@ class Player extends BaseObject {
         this.iframeTimer = 0;
         this.invincible = false;
 
+
+        this.sprite.setTint(0xffffff);
+
         // Abilities
         this.abilities = [];
         this._initAbilities();

@@ -1428,7 +1428,7 @@ class GameScene extends Phaser.Scene {
         this.fx.flashScreen(0xffd700, 0.4, 400);
 
         if (this.player.classDef && this.player.classDef.level_up_heal > 0) {
-            this.player.heal(this.player.classDef.level_up_heal);
+            this.player.heal(this.player.classDef.level_up_heal * 1.5);
         }
 
 
