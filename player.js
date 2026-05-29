@@ -217,7 +217,7 @@ const CLASS_DEFS = {
         desc: 'Master of volatile concoctions. Excels at elemental chain reactions.',
         color: 0x44ffaa, speed: 200, hp: 100, source: 'alchemist', animType: 'bounce',
         level_up_heal: 10,
-        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'storm_call', 'ferment_bomb']
+        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'storm_call', 'ferment_bomb', 'intimidate_aura']
     },
     bruiser: {
         name: 'Bruiser',
@@ -232,7 +232,7 @@ const CLASS_DEFS = {
         desc: 'Bland but reliable. Lower hp but heals faster and has access to all upgrades.',
         color: 0xffeeaa, speed: 180, hp: 50, source: 'banana', animType: 'bounce',
         level_up_heal: 30,
-        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'heavy_slap', 'spin_kick', 'shockwave', 'thorns', 'berserk_mush', 'seed_spitter', 'spore_cloud', 'vine_grasp', 'fruit_bat_swarm', 'root_shield', 'bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast', 'dash_slash', 'thrown_blade', 'blur', 'blade_fan', 'critical_rip', 'shield_bash', 'ground_pound', 'unstoppable_charge', 'iron_rind', 'gravity_well']
+        abilities: ['zapping_stem', 'static_peel', 'acid_rain', 'solar_flare', 'molecular_rebuild', 'heavy_slap', 'spin_kick', 'shockwave', 'thorns', 'berserk_mush', 'seed_spitter', 'spore_cloud', 'vine_grasp', 'fruit_bat_swarm', 'root_shield', 'bone_shard', 'decay_aura', 'intimidate_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast', 'dash_slash', 'thrown_blade', 'blur', 'blade_fan', 'critical_rip', 'shield_bash', 'ground_pound', 'unstoppable_charge', 'iron_rind', 'gravity_well']
     },
     overseer: {
         name: 'Overseer',
@@ -247,7 +247,7 @@ const CLASS_DEFS = {
         desc: 'Harnesses the decay of fallen enemies to power dark machinations.',
         color: 0xaa44ff, speed: 160, hp: 120, animType: 'rock', source: 'grave_ripener',
         level_up_heal: 2,
-        abilities: ['bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast'],
+        abilities: ['bone_shard', 'decay_aura', 'rise_of_peels', 'soul_siphon', 'rot_blast', 'intimidate_aura'],
         unlockCond: { type: 'totalRuns', value: 3, label: 'Play 3 Times' }
     },
     slicer: {

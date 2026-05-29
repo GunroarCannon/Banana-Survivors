@@ -6,6 +6,7 @@ class BootScene extends Phaser.Scene {
 
     preload() {
         this.load.image('banana_icon', 'assets/icons/delapouite/banana-peeled.png');
+        this.load.image('brutal_helm', 'assets/icons/carl-olsen/brutal-helm.png');
         this.load.image('zombie', 'assets/icons/delapouite/shambling-zombie.png');
         this.load.image('heart', 'assets/icons/lorc/heart-drop.png');
         this.load.image('heart_organ', 'assets/icons/lorc/heart-organ.png');
@@ -498,12 +499,13 @@ class ClassSelectScene extends Phaser.Scene {
         catch { return null; }
     }
 
+    // loadStats for ClassSelectScene
     _loadStats() {
         try {
             const stats = JSON.parse(localStorage.getItem('banana_stats') || 'null');
-            return stats || { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0 };
+            return stats || { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0, longestRun: 0 };
         } catch {
-            return { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0 };
+            return { totalRuns: 0, maxKills: 0, totalKills: 0, maxLevel: 0, longestRun: 0 };
         }
     }
 
@@ -956,6 +958,7 @@ class StatsScene extends Phaser.Scene {
             { label: 'Total Kills', value: stats.totalKills },
             { label: 'Max Kills (One Run)', value: stats.maxKills },
             { label: 'Highest Level', value: stats.maxLevel },
+            { label: 'Longest Run', value: this._formatTime(stats.longestRun || 0) },
             { label: 'Time Survived', value: this._formatTime(stats.totalTime || 0) },
             { label: 'Pulp Collected', value: Math.floor(stats.totalPulp || 0) }
         ];
@@ -980,10 +983,11 @@ class StatsScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-ESC', () => this.scene.start('MainMenu'));
     }
 
+    //loadStats for StatsScene
     _loadStats() {
         try {
-            return JSON.parse(localStorage.getItem('banana_stats')) || { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0 };
-        } catch { return { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0 }; }
+            return JSON.parse(localStorage.getItem('banana_stats')) || { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0, longestRun };
+        } catch { return { totalRuns: 0, totalKills: 0, maxKills: 0, maxLevel: 0, totalTime: 0, totalPulp: 0, longestRun: 0 }; }
     }
 
     _formatTime(sec) {
@@ -1059,7 +1063,7 @@ class GameScene extends Phaser.Scene {
 
         // Increment totalRuns at start of game
         try {
-            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
+            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0,"longestRun":0}');
             stats.totalRuns++;
             localStorage.setItem('banana_stats', JSON.stringify(stats));
         } catch (e) { }
@@ -1555,7 +1559,7 @@ class GameScene extends Phaser.Scene {
 
     _syncProgressiveStats() {
         try {
-            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0}');
+            const stats = JSON.parse(localStorage.getItem('banana_stats') || '{"totalRuns":0,"totalKills":0,"maxKills":0,"maxLevel":0,"totalTime":0,"totalPulp":0,"longestRun":0}');
 
             const newKills = this.totalKills - this._lastSyncedKills;
             const newTime = this.survivedSec - this._lastSyncedTime;
@@ -1566,7 +1570,8 @@ class GameScene extends Phaser.Scene {
             stats.totalPulp = (stats.totalPulp || 0) + newPulp;
             if (this.totalKills > stats.maxKills) stats.maxKills = this.totalKills;
             if (this.level > stats.maxLevel) stats.maxLevel = this.level;
-
+            if (this.survivedSec > (stats.longestRun||0)) stats.longestRun = this.survivedSec;
+            
             localStorage.setItem('banana_stats', JSON.stringify(stats));
 
             this._lastSyncedKills = this.totalKills;
@@ -1662,7 +1667,7 @@ class UpgradeManager {
         const iconMap = {
             'zapping_stem': 'lightning', 'static_peel': 'magnet', 'acid_rain': 'skull', 'solar_flare': 'explosion',
             'heavy_slap': 'banana_icon', 'spin_kick': 'banana', 'shockwave': 'explosion', 'fruit_bat_swarm': 'bat',
-            'storm_call': 'lightning', 'ferment_bomb': 'explosion'
+            'storm_call': 'lightning', 'ferment_bomb': 'explosion', 'intimidate_aura': 'brutal_helm'
         };
 
         for (const [key, AbilityClass] of Object.entries(ABILITY_CLASSES)) {

@@ -108,7 +108,7 @@ class Enemy extends BaseObject {
         const cam = this.scene.cameras.main;
         //const isOnScreen = cam.worldView.contains(this.x, this.y);
         const d = Phaser.Math.Distance.Between(this.x, this.y, this.scene.player.x, this.scene.player.y);
-        const isOnScreen = d < CONFIG.HEIGHT || this.scene.enemies.lenght < 10;
+        const isOnScreen = d < CONFIG.HEIGHT || this.scene.enemies.length < 10;
         //?? if (this.sprite) this.sprite.visible = isOnScreen;
 
         // If offscreen, skip ALL AI logic. Just stay still or maintain velocity.
@@ -410,7 +410,7 @@ class Enemy extends BaseObject {
             const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
             if (distToPlayer < (this.def.width / 2 + target.width / 2)) {
                 if (target.takeDamage) {
-                    target.takeDamage(this.def.damage * 1.5, this.x, this.y);
+                    target.takeDamage(this.def.damage * 1.0, this.x, this.y);
                     // SFX: impact
                     if (this.scene.sound.get('sfx_charge_impact')) this.scene.sound.play('sfx_charge_impact', { volume: 0.8 });
                     this._chargeState = 'cooldown';

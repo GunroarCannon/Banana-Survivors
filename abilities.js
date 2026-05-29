@@ -148,7 +148,9 @@ class ZappingStem extends Ability {
         this._chain(this.player.x, this.player.y, target, new Set(), this.chains + 1);
     }
     _chain(fx, fy, target, visited, remaining) {
-        if (!target || visited.has(target) || remaining <= 0) return;
+        const cam = this.scene.cameras.main;
+        
+        if (!target || visited.has(target) || remaining <= 0 || !(cam.worldView.contains(target.x, target.y))) return;
         visited.add(target);
         // Lightning bolt visual
         const g = this.scene.add.graphics().setDepth(22);
@@ -170,8 +172,10 @@ class ZappingStem extends Ability {
         GameUtils.floatText(this.scene, target.x, target.y - 20, Math.round(dmg), '#66ffff');
         // Chain to next
         let nextBest = null, bestD = Infinity;
+        
+        
         for (const e of this.scene.enemies) {
-            if (visited.has(e) || e.dead) continue;
+            if (visited.has(e) || e.dead || !(cam.worldView.contains(e.x, e.y))) continue;
             const d = Phaser.Math.Distance.Between(target.x, target.y, e.x, e.y);
             if (d < bestD) { bestD = d; nextBest = e; }
         }
@@ -298,6 +302,9 @@ class HeavySlap extends Ability {
         super(s, p, 'heavy_slap', 'Slaps enemies in a cone in front of the player');
         this.cooldown = 800;
         this.angleOffset = (Math.random() - 0.5) * 0.4; // +/- offset
+        if (p) {
+            p.heavySlaps = (p.heavySlaps || 0) + 1
+        }
     }
     update(delta) {
         this.timer += delta;
@@ -305,12 +312,14 @@ class HeavySlap extends Ability {
         this.timer = 0;
         const ang = Math.atan2(this.player.vy || 1, this.player.vx || 0) + this.angleOffset;
         // Fan arc
+        
+        const aoe = 90 * this.player.aoeMult + (20*(this.player.heavySlaps-1));
         for (const e of this.scene.enemies) {
             if (e.dead) continue;
             const eAng = Math.atan2(e.y - this.player.y, e.x - this.player.x);
             const diff = Phaser.Math.Angle.Wrap(eAng - ang);
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
-            if (Math.abs(diff) < Math.PI * 0.45 && dist < 90 * this.player.aoeMult) {
+            if (Math.abs(diff) < Math.PI * 0.45 && dist < aoe) {
                 const dmg = 35 * this.player.damageMult;
                 e.takeDamage(dmg, this.player.x, this.player.y);
                 GameUtils.floatText(this.scene, e.x, e.y - 22, Math.round(dmg), '#ff9944');
@@ -319,7 +328,7 @@ class HeavySlap extends Ability {
         // Visual arc
         const g = this.scene.add.graphics().setDepth(20);
         g.fillStyle(0xff9944, 0.4);
-        g.slice(this.player.x, this.player.y, 90 * this.player.aoeMult, ang - Math.PI * 0.45, ang + Math.PI * 0.45, false);
+        g.slice(this.player.x, this.player.y, aoe, ang - Math.PI * 0.45, ang + Math.PI * 0.45, false);
         g.fillPath();
         this.scene.time.delayedCall(200, () => g.destroy());
         GameUtils.screenShake(this.scene, { intensity: 5, duration: 90 });
@@ -656,6 +665,9 @@ class DecayAura extends Ability {
             return;
         }
 
+        p.decayAura = (p.decayAura || 0)+1
+        this.radius += 30*(p.decayAura-1);
+
         this.auraGfx = p.scene.add.circle(p.x, p.y, this.radius, 0xaa44ff, 0.12).setDepth(7);
         this.auraEdge = p.scene.add.arc(p.x, p.y, this.radius, 0, 360, false, 0xaa44ff, 0.5)
             .setDepth(8).setStrokeStyle(2, 0xaa44ff);
@@ -669,7 +681,41 @@ class DecayAura extends Ability {
             if (e.dead) continue;
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
             if (d < r) {
-                e.speed = (e.def.speed || 60) * 0.45;
+                e.takeDamage(this.player.effectiveDamage/300, undefined, undefined, true)
+                //e._inDecayAura = true;
+            } else {
+                //e._inDecayAura = false;
+            }
+        }
+    }
+}
+
+class IntimidateAura extends Ability {
+    constructor(s, p) {
+        super(s, p, 'intimidate_aura', 'Creates an aura that slows enemies');
+        this.radius = 90;
+
+        if (!s) {
+            return;
+        }
+        
+        p.intimidateAura = (p.intimidateAura || 0)+1
+        this.radius += 30*(p.intimidateAura-1);
+
+        this.auraGfx = p.scene.add.circle(p.x, p.y, this.radius, 0x3322ff, 0.12).setDepth(7);
+        this.auraEdge = p.scene.add.arc(p.x, p.y, this.radius, 0, 360, false, 0x3322ff, 0.5)
+            .setDepth(8).setStrokeStyle(2, 0x3322ff);
+        this.gfx.push(this.auraGfx, this.auraEdge);
+    }
+    update(delta) {
+        this.auraGfx.setPosition(this.player.x, this.player.y);
+        this.auraEdge.setPosition(this.player.x, this.player.y);
+        const r = this.radius * this.player.aoeMult;
+        for (const e of this.scene.enemies) {
+            if (e.dead) continue;
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+            if (d < r) {
+                e.speed = (e.def.speed || 60) * 0.265;
                 e._inDecayAura = true;
             } else {
                 e.speed = e.def.speed || 60;
@@ -996,7 +1042,7 @@ class GravityWell extends Ability {
  */
 class StormCall extends Ability {
     constructor(s, p) {
-        super(s, p, 'storm_call', 'unleashes a massive purple lightning storm hitting all nearby enemies');
+        super(s, p, 'storm_call', 'releases a lightning storm hitting nearby enemies');
         this.cooldown = 30000;
     }
 
@@ -1072,7 +1118,7 @@ class StormCall extends Ability {
  */
 class FermentBomb extends Ability {
     constructor(s, p) {
-        super(s, p, 'ferment_bomb', 'Lobs a toxic bomb that creates a large spreading poison cloud on impact');
+        super(s, p, 'ferment_bomb', 'Lobs a toxic bomb');
         this.cooldown = 8000;
     }
 
@@ -1194,6 +1240,7 @@ const ABILITY_CLASSES = {
     root_shield: RootShield,
     bone_shard: BoneShard,
     decay_aura: DecayAura,
+    intimidate_aura: IntimidateAura,
     rise_of_peels: RiseOfPeels,
     soul_siphon: SoulSiphon,
     rot_blast: RotBlast,

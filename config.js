@@ -51,12 +51,14 @@ const CONFIG = {
         freeze: 'assets/sfx/sfx_other/freeze.ogg',                   // Glacial Behemoth freeze
         explosion: 'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/EXPLOSION Bang 04.ogg', // Magma slam
         zap: 'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/ELECTRIC Shock Zap Short 03.ogg',
-        charge: 'assets/sfx/battle_sound_effects/swish_2.wav',
+        charge: 'assets/sfx/battle_sound_effects/swish_3.wav',
         //'assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/SWOOSH_Whoosh_Light_01.ogg',
-        charge_impact: 'assets/sfx/hits/3.ogg',
+        charge_impact: "assets/sfx/smc-wwviRetroActionSounds/missile_explosion.ogg",// 'assets/sfx/hits/3.ogg',
         // ── Boss / elite ──────────────────────────────────────────
         boss_spawn: 'assets/sfx/sfx_other/warhorn.ogg',                  // boss warning
-        slam: 'assets/sfx/sfx_other/slam.ogg',                     // ground slam land
+        slam: "assets/sfx/smc-wwviRetroActionSounds/missile_explosion.ogg",//'assets/sfx/sfx_other/slam.ogg', 
+
+        spring: "assets/sfx/GameBurp_FREE_Game_Sound_FX_Pack_OGG/BOUNCE Twang Spring 13.ogg"                    // ground slam land
     },
     PLAYER_BASE_HP: 100,
     PLAYER_IFRAMES_MS: 400,   // invincibility after being hit
@@ -74,7 +76,7 @@ const CONFIG = {
     SCALE_INTERVAL_SEC: 15,    // difficulty tick every N seconds
     ENEMY_STAT_MULT: 0.12,  // +12% per tick (multiplicative)
     ELITE_INTERVAL_SEC: 30,
-    BOSS_MILESTONES_SEC: [30, 90, 150, 180], // 30 sec / 1.5 / 2.5 / 3 min
+    BOSS_MILESTONES_SEC: [90, 150, 180, 250], // 30 sec / 1.5 / 2.5 / 3 min
 
     // ── Wave Spawner ─────────────────────────────────────────
     SPAWN_INTERVAL_MS: 1500,
@@ -155,7 +157,7 @@ const ENEMY_DEFS = {
     },
     spore_moth: {
         key: 'spore_moth',
-        source: "zombie_banana",
+        source: "spore_moth",
         label: 'Spore Moth',
         icson: 'ei_butterfly',         // lorc/butterfly — moth-like wings
         width: 32, height: 32,
@@ -290,7 +292,7 @@ const ENEMY_DEFS = {
     centipede: {
         key: 'centipede',
         label: 'Giant Centipede',
-        icon: 'maggot',
+        source: 'maggot',
         width: 105, height: 45,
         hp: 250,
         speed: 90,
@@ -316,22 +318,22 @@ const ENEMY_DEFS = {
         intensity: 6,
         ai: 'charge',
         isBoss: true,
-        animType: 'rock'
+        animType: 'bounce'
     },
     charger_scout: {
         key: 'charger_scout',
         label: 'Charger Scout',
-        source: 'fungal_horror-horns',
+        source: 'iron_husk',
         width: 84, height: 84,
-        hp: 400,
+        hp: 200,
         speed: 100,
-        damage: 25,
+        damage: 20,
         xp: 40,
         color: 0x777777,
         intensity: 3,
         ai: 'charge',
         isElite: true,
-        animType: 'rock'
+        animType: 'wiggle'
     }
 };
 

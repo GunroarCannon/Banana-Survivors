@@ -90,17 +90,17 @@ class BaseObject {
         this._updateHpBar();
     }
 
-    takeDamage(amount, sourceX, sourceY) {
+    takeDamage(amount, sourceX, sourceY, isFake = false) {
         if (this.dead) return;
         this.hp -= amount * this.increaseDamage;
         this._updateHpBar();
         // Play a random hit sfx variant for variety
         const hitKeys = ['hit', 'hit2', 'hit3'];
         const hk = hitKeys[Math.floor(Math.random() * hitKeys.length)];
-        if (this.scene.playSound) this.scene.playSound(hk, { volume: 0.3, rate: 0.9 + Math.random() * 0.2 });
+        if (this.scene.playSound) this.scene.playSound(hk, { volume: isFake ? 0.1 : 0.3, rate: 0.9 + Math.random() * 0.2 });
 
         // Flash white
-        this.scene.tweens.add({ targets: this.sprite, alpha: 0.2, duration: CONFIG.FLASH_DURATION_MS, yoyo: true });
+        if (!isFake) this.scene.tweens.add({ targets: this.sprite, alpha: 0.2, duration: CONFIG.FLASH_DURATION_MS, yoyo: true });
         // Knockback
         if (sourceX !== undefined) {
             const ang = Phaser.Math.Angle.Between(sourceX, sourceY, this.x, this.y);
