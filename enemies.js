@@ -167,10 +167,12 @@ class Enemy extends BaseObject {
         this.target = target;
 
         const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
-        const atkRange = (target.width || 32) / 2 + this.def.width / 2 + 4;
+        const myR    = this.def.collisionRadius ?? this.def.width / 2;
+        const targR  = target.def ? (target.def.collisionRadius ?? target.def.width / 2) : (target.width || 42) / 2;
+        const atkRange = targR + myR + 4;
 
         // Collision friction (slower while touching player)
-        const collisionThreshold = (this.def.width + (target.width || 42)) * 0.45;
+        const collisionThreshold = (myR + (target.def ? targR : (target.width || 42) / 2)) * 0.9;
         this._isColliding = (target.faction === CONFIG.FACTIONS.PLAYER && dist < collisionThreshold);
 
         if (this._isColliding && !this.collidedBefore) {
@@ -602,7 +604,7 @@ function resolveEnemyCollisions(enemies, player) {
         const distToPlayerSq = (a.x - player.x) ** 2 + (a.y - player.y) ** 2;
         if (distToPlayerSq > activeRadiusSq) continue;
 
-        const ra = (a.def.width || 32) / 2;
+        const ra = a.def.collisionRadius ?? (a.def.width || 32) / 2;
 
         for (let j = i + 1; j < enemies.length; j++) {
             const b = enemies[j];
@@ -611,7 +613,7 @@ function resolveEnemyCollisions(enemies, player) {
             const dx = b.x - a.x;
             const dy = b.y - a.y;
             const distSq = dx * dx + dy * dy;
-            const rb = (b.def.width || 32) / 2;
+            const rb = b.def.collisionRadius ?? (b.def.width || 32) / 2;
             const minDist = ra + rb;
 
             if (distSq < minDist * minDist) {

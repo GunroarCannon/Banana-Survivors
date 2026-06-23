@@ -12,6 +12,7 @@ const CONFIG = {
     MAX_SIMULTANEOUS_SFX: 8,
 
     DEBUG: false,
+    DEBUG_DRAW: true,   // draw collision circles every frame
 
     // ── Player ───────────────────────────────────────────────
     BASE_SPEED: 180,
@@ -125,11 +126,24 @@ const ENEMY_DEFS = {
         ai: 'seek',
         animType: 'wiggle'
     },
+    zombie_banana: {
+        key: 'zombie_banana',
+        source: 'zombie_banana',
+        label: 'Zombie Banana',
+        width: 48, height: 48,
+        hp: 35,
+        speed: 55,
+        damage: 8,
+        xp: 3,
+        color: 0x9acd32,
+        intensity: 0,
+        ai: 'seek',
+        animType: 'wiggle'
+    },
     mold_fly: {
         key: 'mold_fly',
         label: 'Mold Fly',
-        source: "spore_moth",
-        icson: 'ei_dragonfly',         // lorc/dragonfly — insect silhouette
+        source: "mold_fly",
         width: 50, height: 50,
         hp: 10,
         speed: 140,
@@ -144,7 +158,7 @@ const ENEMY_DEFS = {
     rot_slug: {
         key: 'rot_slug',
         label: 'Rot Slug',
-        source: "zombie_banana",            // lorc/snail — slow-moving trail
+        source: "rot_slug",
         width: 40, height: 40,
         hp: 55,
         speed: 45,
@@ -159,7 +173,6 @@ const ENEMY_DEFS = {
         key: 'spore_moth',
         source: "spore_moth",
         label: 'Spore Moth',
-        icson: 'ei_butterfly',         // lorc/butterfly — moth-like wings
         width: 32, height: 32,
         hp: 30,
         speed: 110,
@@ -175,7 +188,6 @@ const ENEMY_DEFS = {
         key: 'fungal_horror',
         source: "fungal_horror",
         label: 'Fungal Horror',
-        icosn: 'ei_mushroom',          // lorc/mushroom — fungal theme
         width: 54, height: 54,
         hp: 180,
         speed: 38,
@@ -190,7 +202,7 @@ const ENEMY_DEFS = {
     eldritch_peel: {
         key: 'eldritch_peel',
         label: 'Eldritch Peel',
-        source: 'ei_tentacles_skull',   // lorc/tentacles-skull — eldritch horror
+        source: 'eldritch_peel',
         width: 70, height: 70,
         hp: 800,
         speed: 30,
@@ -209,9 +221,10 @@ const ENEMY_DEFS = {
         key: 'storm_titan',
         label: 'Storm Titan',
         moveType: 'charge',
-        source: 'rot_god',   // lorc/lightning-storm — sparks and bolts
+        source: 'storm_titan',
         // ~4× player (42×42 → 168×168)
         width: 168 * 2, height: 168 * 2,
+        collisionRadius: 80,   // smaller logical hitbox than the giant sprite
         hp: 1200,
         speed: 28,
         damage: 20,
@@ -227,10 +240,10 @@ const ENEMY_DEFS = {
     glacial_behemoth: {
         key: 'glacial_behemoth',
         label: 'Glacial Behemoth',
-        source: 'rot_god',
-        idcon: 'ei_frozen_orb',        // lorc/frozen-orb — icy orb
+        source: 'glacial_behemoth',
         // ~5× player (42×42 → 210×210)
         width: 210, height: 210,
+        collisionRadius: 70,   // smaller logical hitbox than the giant sprite
         hp: 1600,
         speed: 18,
         damage: 50,
@@ -243,12 +256,30 @@ const ENEMY_DEFS = {
         animType: 'bounce',
     },
 
+    rot_god: {
+        key: 'rot_god',
+        label: 'Rot God',
+        source: 'rot_god',
+        width: 180, height: 180,
+        collisionRadius: 60,   // smaller logical hitbox than the giant sprite
+        hp: 5000,
+        speed: 25,
+        damage: 80,
+        xp: 600,
+        color: 0x8b0000,
+        intensity: 5,
+        ai: 'magma_slam',
+        isBoss: true,
+        animType: 'bounce'
+    },
+
     magma_lord: {
         key: 'magma_lord',
         label: 'Magma Lord',
         source: 'fungal_horror',           // lorc/volcano — eruption imagery
         // ~3.5× player (42×42 → 147×147)
         width: 147, height: 147,
+        collisionRadius: 50,   // smaller logical hitbox than the giant sprite
         hp: 1000,
         speed: 35,
         damage: 25,
@@ -263,7 +294,7 @@ const ENEMY_DEFS = {
     wasp: {
         key: 'wasp',
         label: 'Vicious Wasp',
-        source: 'ei_bee',
+        source: 'spore_moth',
         width: 26, height: 26,
         hp: 25,
         speed: 160,
@@ -278,7 +309,7 @@ const ENEMY_DEFS = {
     beetle: {
         key: 'beetle',
         label: 'Armored Beetle',
-        source: 'zombie_banana',
+        source: 'armored_beetle',
         width: 38, height: 38,
         hp: 120,
         speed: 50,
@@ -307,9 +338,9 @@ const ENEMY_DEFS = {
     behemoth_charger: {
         key: 'behemoth_charger',
         label: 'Behemoth Charger',
-        icosn: 'ei_bull-horns',
-        source: "iron_husk",
+        source: "charger_behemoth",
         width: 420, height: 420,
+        collisionRadius: 100,  // smaller logical hitbox than the giant sprite
         hp: 5000,
         speed: 40,
         damage: 60,
@@ -323,7 +354,7 @@ const ENEMY_DEFS = {
     charger_scout: {
         key: 'charger_scout',
         label: 'Charger Scout',
-        source: 'iron_husk',
+        source: 'charger_scout',
         width: 84, height: 84,
         hp: 200,
         speed: 100,

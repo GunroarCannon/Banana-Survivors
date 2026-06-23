@@ -12,11 +12,14 @@ class BootScene extends Phaser.Scene {
         this.load.image('heart_organ', 'assets/icons/lorc/heart-organ.png');
         this.load.image('skull', 'assets/icons/sbed/death-skull.png');
         this.load.image('trophy', 'assets/icons/lorc/trophy.png');
-        this.load.image('ghost', 'assets/icons/lorc/ghost.png');
+        this.load.image('ghost', 'assets/ghost.png');
         this.load.image('star', 'assets/icons/delapouite/round-star.png');
         this.load.image('potion', 'assets/icons/lorc/potion-ball.png');
         this.load.image('banana', 'assets/banana.png')
-
+        this.load.image('seed_spitter_turret', 'assets/seed_spitter_turret.png');
+        this.load.image('peel_trap', 'assets/peel_trap.png');
+        this.load.image('root_shield', 'assets/root_shield.png');
+        this.load.image('ei_bee', 'assets/icons/lorc/bee.png');
 
         const sources = {
             zombie_banana: 'assets/enemies/zombie.png',
@@ -24,6 +27,14 @@ class BootScene extends Phaser.Scene {
             fungal_horror: 'assets/enemies/fungal_horror.png',
             spore_moth: 'assets/enemies/spore_moth.png',
             rot_god: 'assets/enemies/rotgod.png',
+            mold_fly: 'assets/enemies/mold_fly.png',
+            rot_slug: 'assets/enemies/rot_slug.png',
+            armored_beetle: 'assets/enemies/armored_beetle.png',
+            charger_scout: 'assets/enemies/charger_scout.png',
+            charger_behemoth: 'assets/enemies/charger_behemoth.png',
+            storm_titan: 'assets/enemies/storm_titan.png',
+            glacial_behemoth: 'assets/enemies/glacial_behemoth.png',
+            eldritch_peel: 'assets/enemies/eldritch_peel.png',
 
             bat: 'assets/bat.png',
 
@@ -33,7 +44,6 @@ class BootScene extends Phaser.Scene {
             iron_husk: 'assets/players/iron_husk.png',
             overseer: 'assets/players/overseer.png',
             slicer: 'assets/players/slicer.png',
-
         }
 
 
@@ -122,11 +132,10 @@ class BootScene extends Phaser.Scene {
         g2.generateTexture('round_rect_outline', 64, 64);
         g2.destroy();
 
-        // Generate placeholder enemy sprites per def.
-        // For enemies with an `icon` field the procedural texture is overlaid
-        // with the icon image (the icon is drawn at 60% body size, centred).
         for (const [key, def] of Object.entries(ENEMY_DEFS)) {
-            this._genEnemyTexture(key, def);
+            if (!this.textures.exists(key)) {
+                this._genEnemyTexture(key, def);
+            }
         }
 
         console.log(":loot? ")
@@ -603,8 +612,9 @@ class ClassSelectScene extends Phaser.Scene {
         const icon = this.add.image(0, -70, 'star').setDisplaySize(54, 54).setTint(0xffd700);
 
         // Animated scale bounce on icon
+        console.log("Star")
         this.tweens.add({
-            targets: icon, scaleX: 1.25, scaleY: 1.25,
+            targets: icon, scaleX: .3, scaleY: .3,
             duration: 320, yoyo: true, repeat: -1, ease: 'Sine.InOut'
         });
 
@@ -1165,6 +1175,11 @@ class GameScene extends Phaser.Scene {
                 backgroundColor: '#00000088'
             }).setScrollFactor(0).setDepth(1000);
         }
+
+        // --- Debug Draw graphics layer ---
+        if (CONFIG.DEBUG_DRAW) {
+            this.debugGfx = this.add.graphics().setDepth(2000);
+        }
     }
 
     _showPauseOverlay() {
@@ -1325,6 +1340,23 @@ class GameScene extends Phaser.Scene {
 
         // Abilities bar refresh
         if (time % 3000 < delta) this.ui.updateAbilities(this.player.abilities);
+
+        // --- Debug: draw collision outlines ---
+        if (CONFIG.DEBUG_DRAW && this.debugGfx) {
+            this.debugGfx.clear();
+            // Player hitbox (green)
+            const pr = (this.player.width || 42) / 2;
+            this.debugGfx.lineStyle(1, 0x00ff00, 0.85);
+            this.debugGfx.strokeRect(this.player.x - pr, this.player.y - pr, pr * 2, pr * 2);
+            // Enemy hitboxes
+            for (const e of this.enemies) {
+                if (e.dead) continue;
+                const er = e.def.collisionRadius ?? (e.def.width || 32) / 2;
+                const isGiant = e.def.collisionRadius !== undefined;
+                this.debugGfx.lineStyle(1, isGiant ? 0xff8800 : 0xff2222, 0.75);
+                this.debugGfx.strokeRect(e.x - er, e.y - er, er * 2, er * 2);
+            }
+        }
     }
 
     _handleInput() {
@@ -1376,7 +1408,9 @@ class GameScene extends Phaser.Scene {
         for (const e of this.enemies) {
             if (e.dead) continue;
             const distSq = (this.player.x - e.x) ** 2 + (this.player.y - e.y) ** 2;
-            const radiusSum = e.width / 2 + this.player.width / 2 - 8;
+            const er = e.def.collisionRadius ?? e.width / 2;
+            const pr = this.player.width / 2;
+            const radiusSum = er + pr - 8;
             if (distSq < radiusSum * radiusSum) {
 
                 if (!e.attackCooldown) e.attackCooldown = 0;

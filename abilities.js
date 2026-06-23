@@ -460,7 +460,7 @@ class SeedSpitter extends Ability {
                 life: 6000, fireTimer: 0, dead: false,
                 // Turret moves at 60 px/s toward the nearest enemy (summoner AI)
                 speed: 60,
-                sprite: this.scene.add.rectangle(0, 0, 20, 20, 0x44ff88).setDepth(12),
+                sprite: this.scene.add.image(0, 0, 'seed_spitter_turret').setDisplaySize(24, 24).setDepth(12),
             };
             t.sprite.setPosition(t.x, t.y);
             this.turrets.push(t);
@@ -599,7 +599,7 @@ class RootShield extends Ability {
         this.shieldGfx = [];
         if (p && s)
             for (let i = 0; i < this.segments; i++) {
-                const seg = p.scene.add.rectangle(0, 0, 14, 22, 0x886633).setDepth(15);
+                const seg = p.scene.add.image(0, 0, 'root_shield').setDisplaySize(14, 22).setDepth(15);
                 this.shieldGfx.push(seg);
                 this.gfx.push(seg);
             }
@@ -629,7 +629,7 @@ class RootShield extends Ability {
         this.scene.time.delayedCall(8000, () => {
             this.alive = true;
             for (let i = 0; i < this.segments; i++) {
-                const seg = this.scene.add.rectangle(0, 0, 14, 22, 0x886633).setDepth(15);
+                const seg = this.scene.add.image(0, 0, 'root_shield').setDisplaySize(14, 22).setDepth(15);
                 this.shieldGfx[i] = seg;
             }
         });
@@ -731,7 +731,7 @@ class RiseOfPeels extends Ability {
         if (Math.random() > 0.4) return;
         const peel = {
             x: e.x, y: e.y,
-            sprite: this.scene.add.rectangle(e.x, e.y, 24, 10, 0xffee33, 0.9).setDepth(9).setRotation(Math.random() * Math.PI),
+            sprite: this.scene.add.image(e.x, e.y, 'peel_trap').setDisplaySize(24, 24).setDepth(9).setRotation(Math.random() * Math.PI),
             triggered: false,
         };
         this.peels.push(peel);
