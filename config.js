@@ -12,7 +12,7 @@ const CONFIG = {
     MAX_SIMULTANEOUS_SFX: 8,
 
     DEBUG: false,
-    DEBUG_DRAW: true,   // draw collision circles every frame
+    DEBUG_DRAW: false,   // draw collision circles every frame
 
     // ── Player ───────────────────────────────────────────────
     BASE_SPEED: 180,
